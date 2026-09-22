@@ -1,0 +1,20 @@
+**
+**  TAMIC_soft(R) 1991,1992 vR1.01
+**
+**  Interfaces to messages output precedures of IC program.
+**
+**  FILE: \inlcude\mic\traces.fi
+**
+$NOTRUNCATE
+$NOTSTRICT
+
+*
+*  void _far _fortran Out_percent_trace( char _far *Trace, int Percents)
+*
+      INTERFACE TO SUBROUTINE Out_percent_trace[FAR]( Trace, Percents )
+      INTEGER*4 Trace[VALUE]
+      INTEGER*2 Percents[VALUE]
+      END
+
+
+

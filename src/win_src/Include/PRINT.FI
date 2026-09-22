@@ -1,0 +1,95 @@
+$NOTRUNCATE
+$NOTSTRICT
+
+      INTERFACE TO SUBROUTINE
+     +        set_eject_flag[FAR,C,ALIAS:"_set_eject_flag"]( flag )
+        INTEGER*2 flag
+      END
+
+      INTERFACE TO FUNCTION get_eject_flag( )
+        INTEGER*2 get_eject_flag[FAR,C,ALIAS:"_get_eject_flag"]
+      END
+
+      INTERFACE TO SUBROUTINE
+     +        set_turne_flag[FAR,C,ALIAS:"_set_turne_flag"]( flag )
+        INTEGER*2 flag
+      END
+
+      INTERFACE TO FUNCTION get_turne_flag( )
+        INTEGER*2 get_turne_flag[FAR,C,ALIAS:"_get_turne_flag"]
+      END
+
+
+      INTERFACE TO SUBROUTINE
+     +        set_repeet_num[FAR,C,ALIAS:"_set_repeet_num"]( num )
+        INTEGER*2 num
+      END
+
+      INTERFACE TO FUNCTION get_repeet_num( )
+        INTEGER*2 get_repeet_num[FAR,C,ALIAS:"_get_repeet_num"]
+      END
+
+
+      INTERFACE TO SUBROUTINE
+     +        set_print_density[FAR,C,ALIAS:"_set_print_density"]
+     +                                       ( dens )
+        INTEGER*2 dens
+      END
+
+      INTERFACE TO FUNCTION get_print_density( )
+        INTEGER*2 get_print_density[FAR,C,ALIAS:"_get_print_density"]
+      END
+
+
+      INTERFACE TO SUBROUTINE
+     +        set_printer_type[FAR,C,ALIAS:"_set_printer_type"]
+     +                                      ( type )
+        INTEGER*2 type
+      END
+
+      INTERFACE TO FUNCTION get_printer_type( )
+        INTEGER*2 get_printer_type[FAR,C,ALIAS:"_get_printer_type"]
+      END
+
+      INTERFACE TO SUBROUTINE
+     +        set_left_margin[FAR,C,ALIAS:"_set_left_margin"]
+     +                   ( margin )
+        INTEGER*2 margin
+      END
+
+      INTERFACE TO FUNCTION get_left_margin( )
+        INTEGER*2 get_left_margin[FAR,C,ALIAS:"_get_left_margin"]
+      END
+
+      INTERFACE TO SUBROUTINE
+     +        set_print_file_name[FAR,C,ALIAS:"_set_print_file_name"]
+     +                           ( name )
+        CHARACTER*(*) name[FAR,REFERENCE]
+      END
+
+      INTERFACE TO SUBROUTINE
+     +        set_print_window[FAR,C,ALIAS:"_set_print_window"]
+     +                   ( left, top, right, bottom )
+        INTEGER*2  left, top, right, bottom
+      END
+
+      INTERFACE TO SUBROUTINE
+     +        print_screen_window[FAR,C,ALIAS:"_print_screen_window"]
+      END
+
+      INTERFACE TO SUBROUTINE
+     +        set_print_color_tab[FAR,C,ALIAS:"_set_print_color_tab"]
+     +                   ( color_tab )
+        STRUCTURE/print_color_tab/
+           INTEGER*2 num
+           INTEGER*1 color(1024)
+        END STRUCTURE
+        RECORD/print_color_tab/ color_tab[FAR,REFERENCE]
+      END
+
+*void _far set_print_stop_handler( int (*handler)( void ) );
+*void _far set_prn_persent_handler( void (*handler)( Uint ) );
+
+
+
+

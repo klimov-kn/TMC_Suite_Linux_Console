@@ -1,0 +1,14 @@
+**
+**  TAMIC_soft(R) 1991,1992 vR1.01
+**
+**  Physical constants definition file.
+**
+**  FILE : \include\mic\physcon.fd
+**
+
+
+      REAL*8 EPSILON_NUL,LIGHT_VEL,PI
+      PARAMETER (PI = 3.141592653589793D0 )
+      PARAMETER (LIGHT_VEL = 2.99792458D8)
+      PARAMETER (EPSILON_NUL = 8.85418757D-12)
+

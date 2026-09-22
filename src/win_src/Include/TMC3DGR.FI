@@ -1,0 +1,182 @@
+$NOLIST
+$NOTRUNCATE
+$NOTSTRICT
+
+**
+**  TAMIC_soft(R) 1991 v1.00
+**
+** Macros and decloration for 3D TAMIC graphics programm
+**
+**
+**
+**
+
+
+
+*
+*      void       _far set_org_vector( _3D_VECTOR _far *vector );
+*
+      INTERFACE TO SUBROUTINE
+     +    set_org_vector[FAR,C,ALIAS:"_set_org_vector"]( vector )
+        STRUCTURE/ f3D_VECTOR  /
+         real*4 x
+         real*4 y
+         real*4 z
+        END STRUCTURE
+
+        record / f3D_VECTOR / vector[FAR, REFERENCE]
+      END
+
+*
+*   _3D_VECTOR _far *get_org_vector( void );
+*
+      INTERFACE TO FUNCTION get_org_vector
+        INTEGER*4 get_org_vector[FAR,C,ALIAS:"_get_org_vector"]
+      END
+
+
+*
+*     void   _far set_x_angle( _real x );
+*
+      INTERFACE TO SUBROUTINE
+     +    set_x_angle[FAR,C,ALIAS:"_set_x_angle"]( x )
+        real*4 x
+      END
+*
+*       _real  _far get_x_angle( void );
+*
+      INTERFACE TO FUNCTION get_x_angle
+        REAL*4 get_x_angle[FAR,C,ALIAS:"_get_x_angle"]
+      END
+
+*
+*       void   _far set_y_angle( _real x );
+*
+      INTERFACE TO SUBROUTINE
+     +    set_y_angle[FAR,C,ALIAS:"_set_y_angle"]( y )
+        real*4 y
+      END
+
+*
+*        _real  _far get_y_angle( void );
+*
+      INTERFACE TO FUNCTION get_y_angle
+        REAL*4 get_y_angle[FAR,C,ALIAS:"_get_y_angle"]
+      END
+
+*
+*      void   _far set_z_angle( _real x );
+*
+      INTERFACE TO SUBROUTINE
+     +    set_z_angle[FAR,C,ALIAS:"_set_z_angle"]( z )
+        real*4 z
+      END
+
+*
+*         _real  _far get_z_angle( void );
+*
+      INTERFACE TO FUNCTION get_z_angle
+        REAL*4 get_z_angle[FAR,C,ALIAS:"_get_z_angle"]
+      END
+
+
+*
+*       void _far build_3d_transformation( void );
+*
+      INTERFACE TO SUBROUTINE build_3d_transformation
+     +          [FAR,C,ALIAS:"_build_3d_transformation"]
+      END
+
+
+*
+*     _real     _far x_3d_transformation( _real x, _real y, _real z );
+*
+      INTERFACE TO FUNCTION x_3d_transformation
+     +            [FAR,C,ALIAS:"_x_3d_transformation"]
+     +            ( x, y, z )
+        REAL*4 x_3d_transformation
+        REAL*4 x, y, z
+      END
+
+*
+*       _real     _far y_3d_transformation( _real x, _real y, _real z );
+*
+      INTERFACE TO FUNCTION y_3d_transformation
+     +        [FAR,C,ALIAS:"_y_3d_transformation"]
+     +            ( x, y, z )
+        REAL*4 y_3d_transformation
+        REAL*4 x, y, z
+      END
+
+*
+*      _real     _far z_3d_transformation( _real x, _real y, _real z );
+*
+      INTERFACE TO FUNCTION z_3d_transformation
+     +           [FAR,C,ALIAS:"_z_3d_transformation"]
+     +            ( x, y, z )
+        REAL*4 z_3d_transformation
+        REAL*4 x, y, z
+      END
+
+*
+*   _3D_POINT _far *_3d_point_transformation( _3D_POINT _far *out, _3D_POINT _far *in );
+*
+      INTERFACE TO FUNCTION f3d_point_transformation
+     +    [FAR,C,ALIAS:"_3d_point_transformation"]
+     +            ( out, in )
+        INTEGER*4 f3d_point_transformation
+        STRUCTURE/ f3D_POINT  /
+         real*4 x
+         real*4 y
+         real*4 z
+        END STRUCTURE
+
+        record / f3D_POINT / out[FAR, REFERENCE]
+        record / f3D_POINT / in[FAR, REFERENCE]
+      END
+
+
+*
+*        void _far point_3d_w( _3D_POINT _far *x );
+*
+      INTERFACE TO SUBROUTINE point_3d_w
+     +          [FAR,C,ALIAS:"_point_3d_w"]( x )
+        STRUCTURE/ f3D_POINT  /
+         real*4 x
+         real*4 y
+         real*4 z
+        END STRUCTURE
+
+        record / f3D_POINT / x[FAR, REFERENCE]
+      END
+
+*
+*     void _far line_3d_w( _3D_POINT _far *x1, _3D_POINT _far *x2 );
+*
+      INTERFACE TO SUBROUTINE line_3d_w
+     +          [FAR,C,ALIAS:"_line_3d_w"]( x1, x2 )
+        STRUCTURE/ f3D_POINT  /
+         real*4 x
+         real*4 y
+         real*4 z
+        END STRUCTURE
+
+        record / f3D_POINT / x1[FAR, REFERENCE]
+        record / f3D_POINT / x2[FAR, REFERENCE]
+      END
+*
+*   void _far outtext_3d_w( _3D_POINT _far *x, char _far *string );
+*
+      INTERFACE TO SUBROUTINE outtext_3d_w
+     +          [FAR,C,ALIAS:"_outtext_3d_w"]( x, string )
+        STRUCTURE/ f3D_POINT  /
+         real*4 x
+         real*4 y
+         real*4 z
+        END STRUCTURE
+
+        record / f3D_POINT / x[FAR, REFERENCE]
+        character*(*) string[FAR, REFERENCE]
+      END
+
+

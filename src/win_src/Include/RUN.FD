@@ -1,0 +1,29 @@
+* run.fd - declare constants and functions for curnel routines
+*
+* Copyright (c) 1990 TAMIC_soft GROUP.  All rights reserved.
+*
+*Purpose:
+*   This file the manifest constants that are used with curnel routines.
+*
+*******************************************************************************
+
+$NOTRUNCATE        ! required for some names to be significant
+$NOTSTRICT         ! uses structures which are non-standard conforming
+
+
+* structure for determen input location
+      STRUCTURE/inp_adress/
+        INTEGER*2 block                  ! block number
+        INTEGER*2 input                  ! input number in this block
+      END STRUCTURE
+
+
+* structure for input operations
+      STRUCTURE/input/
+        INTEGER*2 num                    ! input number
+        INTEGER*2 norm_ptr(20)           ! array for input dimensions
+        REAL*4    norm_array(20,20)      ! norm coef. array for each input
+        INTEGER*2 flag(20)               ! flag for determin trn input
+        RECORD/inp_adress/ ia(20)        ! input location
+      END STRUCTURE
+

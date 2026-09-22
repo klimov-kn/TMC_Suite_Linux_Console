@@ -1,0 +1,39 @@
+*print.fd - declare constants and functions for print screen window
+*
+*   Copyright (c) 1991 TAMIC_soft GROUP.  All rights reserved.
+*
+*Purpose:
+*   This file the manifest constants that are used with print screen window
+*   routines.
+*
+*******************************************************************************
+
+$NOTRUNCATE        ! required for some names to be significant
+$NOTSTRICT         ! uses structures which are non-standard conforming
+
+
+* structure for color table
+      STRUCTURE/print_color_tab/
+        INTEGER*2 num
+        INTEGER*1 color(1024)
+      END STRUCTURE
+*
+      INTEGER*2 $EPSON, $IBM, 
+     +          $60, $120, $120s, $240,
+     +          $DRAFT, $MEADLE, $HIGH,
+     +          $TURNE, $NOTURNE, 
+     +          $EJECT, $NOEJECT
+      PARAMETER($EPSON   = 0)    ! printer type EPSON
+      PARAMETER($IBM     = 1)    ! printer type IBM
+      PARAMETER($60      = 0)    ! print density 1/60
+      PARAMETER($120     = 1)    ! print density 1/120
+      PARAMETER($120s    = 2)    ! print density 1/120s
+      PARAMETER($240     = 3)    ! print density 1/240
+      PARAMETER($DRAFT   = 0)    ! repeet number to print -> 1
+      PARAMETER($MEADLE  = 1)    ! repeet number to print -> 2
+      PARAMETER($HIGH    = 2)    ! repeet number to print -> 3
+      PARAMETER($TURNE   = 1)    ! turne flag ON
+      PARAMETER($NOTURNE = 0)    ! turne flag OFF
+      PARAMETER($EJECT   = 1)    ! eject print page
+      PARAMETER($NOEJECT = 0)    ! no eject print page
+

@@ -1,0 +1,49 @@
+*topology.fd - declare constants and functions for topology routines
+*
+*   Copyright (c) 1990 TAMIC_soft GROUP.  All rights reserved.
+*
+*Purpose:
+*   This file the manifest constants that are used with topology routines.
+*
+*******************************************************************************
+
+$NOTRUNCATE        ! required for some names to be significant
+$NOTSTRICT         ! uses structures which are non-standard conforming
+
+
+* structure for matrix rotation transformation
+      STRUCTURE/matrix/
+        REAL*4 a11
+        REAL*4 a12
+        REAL*4 a21
+        REAL*4 a22
+      END STRUCTURE
+
+
+* structure for vector operations
+      STRUCTURE/vector/
+        REAL*4 x
+        REAL*4 y
+      END STRUCTURE
+
+
+*  structure  operator
+      STRUCTURE/operator/
+        INTEGER*2 block_num                     ! block number to be tramsformed
+        INTEGER*2 x_flag
+        INTEGER*2 y_flag                        ! x & y sim. transform flag
+        REAL*4    phi                           ! angle for turne block
+        RECORD/vector/ bp                       ! base point for rotation
+        RECORD/matrix/ m                        ! transform matrix of angle phi
+        RECORD/vector/ v                        ! shift block vector
+        RECORD/operator/ next[ALLOCATABLE]      ! pointer to next operator structure
+      END STRUCTURE
+
+
+*  structure  input_data
+      STRUCTURE/input_data/
+        RECORD/vector/ v0
+        RECORD/vector/ v1         ! start & end input coordinates
+        INTEGER*2 parm            ! mesh points or modes for this input
+      END STRUCTURE
+

@@ -1,0 +1,261 @@
+$NOLIST
+*tmcgraph.fd - declare constants and functions for graphics library
+*
+*   Copyright (c) 1991 TAMIC_soft group.  All rights reserved.
+*
+*Purpose:
+*   This file declares the graphics library functions and
+*   the manifest constants that are used with them.
+*
+*******************************************************************************
+$NOTRUNCATE
+$NOTSTRICT
+
+*
+* graphresult error return codes
+*
+      INTEGER*2 $grOk, $grNoInitGraph, $grNotDetected, $grFileNotFound,
+     +          $grInvalidDriver, $grNoLoadMem, $grNoScanMem,
+     +          $grNoFloodMem, $grFontNotFound, $grNoFontMem,
+     +          $grInvalidMode, $grError, $grIOerror, $grInvalidFont,
+     +          $grInvalidFontNum, $grInvalidVersion
+*
+      PARAMETER($grOk               =   0)
+      PARAMETER($grNoInitGraph      =  -1)
+      PARAMETER($grNotDetected      =  -2)
+      PARAMETER($grFileNotFound     =  -3)
+      PARAMETER($grInvalidDriver    =  -4)
+      PARAMETER($grNoLoadMem        =  -5)
+      PARAMETER($grNoScanMem        =  -6)
+      PARAMETER($grNoFloodMem       =  -7)
+      PARAMETER($grFontNotFound     =  -8)
+      PARAMETER($grNoFontMem        =  -9)
+      PARAMETER($grInvalidMode      = -10)
+      PARAMETER($grError            = -11)   ! generic error
+      PARAMETER($grIOerror          = -12)
+      PARAMETER($grInvalidFont      = -13)
+      PARAMETER($grInvalidFontNum   = -14)
+      PARAMETER($grInvalidVersion   = -18)
+*
+* define graphics drivers
+*
+      INTEGER*2  $DETECT, $CGA, $MCGA, $EGA, $EGA64, $EGAMONO,
+     +           $IBM8514, $HERCMONO, $ATT400, $VGA, $PC3270,
+     +           $CURRENT_DRIVER
+*
+        PARAMETER($DETECT         =  0)       ! requests autodetection */
+        PARAMETER($CGA            =  1)
+        PARAMETER($MCGA           =  2)
+        PARAMETER($EGA            =  3)
+        PARAMETER($EGA64          =  4)
+        PARAMETER($EGAMONO        =  5)
+        PARAMETER($IBM8514        =  6)
+        PARAMETER($HERCMONO       =  7)
+        PARAMETER($ATT400         =  8)
+        PARAMETER($VGA            =  9)
+        PARAMETER($PC3270         = 10)
+        PARAMETER($CURRENT_DRIVER = -1)
+
+*
+* graphics modes for each driver
+*
+      INTEGER*2 $CGAC0, $CGAC1, $CGAC2, $CGAC3, $CGAHI, $MCGAC0,
+     +          $MCGAC1, $MCGAC2, $MCGAC3, $MCGAMED, $MCGAHI, $EGALO,
+     +          $EGAHI, $EGA64LO, $EGA64HI, $EGAMONOHI, $HERCMONOHI,
+     +          $ATT400C0, $ATT400C1, $ATT400C2, $ATT400C3, $ATT400MED,
+     +          $ATT400HI, $VGALO, $VGAMED, $VGAHI, $PC3270HI,
+     +          $IBM8514LO, $IBM8514HI
+*
+        PARAMETER($CGAC0      = 0)  ! 320x200 palette 0; 1 page
+        PARAMETER($CGAC1      = 1)  ! 320x200 palette 1; 1 page
+        PARAMETER($CGAC2      = 2)  ! 320x200 palette 2: 1 page
+        PARAMETER($CGAC3      = 3)  ! 320x200 palette 3; 1 page
+        PARAMETER($CGAHI      = 4)  ! 640x200 1 page
+        PARAMETER($MCGAC0     = 0)  ! 320x200 palette 0; 1 page
+        PARAMETER($MCGAC1     = 1)  ! 320x200 palette 1; 1 page
+        PARAMETER($MCGAC2     = 2)  ! 320x200 palette 2; 1 page
+        PARAMETER($MCGAC3     = 3)  ! 320x200 palette 3; 1 page
+        PARAMETER($MCGAMED    = 4)  ! 640x200 1 page
+        PARAMETER($MCGAHI     = 5)  ! 640x480 1 page
+        PARAMETER($EGALO      = 0)  ! 640x200 16 color 4 pages
+        PARAMETER($EGAHI      = 1)  ! 640x350 16 color 2 pages
+        PARAMETER($EGA64LO    = 0)  ! 640x200 16 color 1 page
+        PARAMETER($EGA64HI    = 1)  ! 640x350 4 color  1 page
+        PARAMETER($EGAMONOHI  = 0)  ! 640x350 64K on card, 1 page - 256K on card, 4 pages
+        PARAMETER($HERCMONOHI = 0)  ! 720x348 2 pages
+        PARAMETER($ATT400C0   = 0)  ! 320x200 palette 0; 1 page
+        PARAMETER($ATT400C1   = 1)  ! 320x200 palette 1; 1 page
+        PARAMETER($ATT400C2   = 2)  ! 320x200 palette 2; 1 page
+        PARAMETER($ATT400C3   = 3)  ! 320x200 palette 3; 1 page
+        PARAMETER($ATT400MED  = 4)  ! 640x200 1 page
+        PARAMETER($ATT400HI   = 5)  ! 640x400 1 page
+        PARAMETER($VGALO      = 0)  ! 640x200 16 color 4 pages
+        PARAMETER($VGAMED     = 1)  ! 640x350 16 color 2 pages
+        PARAMETER($VGAHI      = 2)  ! 640x480 16 color 1 page
+        PARAMETER($PC3270HI   = 0)  ! 720x350 1 page
+        PARAMETER($IBM8514LO  = 0)  ! 640x480 256 colors
+        PARAMETER($IBM8514HI  = 1)  !1024x768 256 colors
+
+*
+* COLORS
+*
+      INTEGER*2 $BLACK, $BLUE, $GREEN, $CYAN, $RED, $MAGENTA,
+     +          $BROWN, $LIGHTGRAY, $DARKGRAY, $LIGHTBLUE,
+     +          $LIGHTGREEN, $LIGHTCYAN, $LIGHTRED, $LIGHTMAGENTA,
+     +          $YELLOW, $WHITE
+
+
+        PARAMETER($BLACK        = 0)         ! dark colors
+        PARAMETER($BLUE         = 1)
+        PARAMETER($GREEN        = 2)
+        PARAMETER($CYAN         = 3)
+        PARAMETER($RED          = 4)
+        PARAMETER($MAGENTA      = 5)
+        PARAMETER($BROWN        = 6)
+        PARAMETER($LIGHTGRAY    = 7)
+        PARAMETER($DARKGRAY     = 8)          ! light colors
+        PARAMETER($LIGHTBLUE    = 9)
+        PARAMETER($LIGHTGREEN   = 10)
+        PARAMETER($LIGHTCYAN    = 11)
+        PARAMETER($LIGHTRED     = 12)
+        PARAMETER($LIGHTMAGENTA = 13)
+        PARAMETER($YELLOW       = 14)
+        PARAMETER($WHITE        = 15)
+*
+* Horizontal and vertical justification  for settextjustify
+*
+      INTEGER*2 $CENTER_TEXT, $LEFT_TEXT, $RIGHT_TEXT,
+     +          $BOTTOM_TEXT, $TOP_TEXT
+*
+        PARAMETER($LEFT_TEXT    = 0)
+        PARAMETER($CENTER_TEXT  = 1)
+        PARAMETER($RIGHT_TEXT   = 2)
+        PARAMETER($BOTTOM_TEXT  = 0)
+        PARAMETER($TOP_TEXT     = 2)
+
+
+      INTEGER*2 $DEFAULT_FONT, $TRIPLEX_FONT, $SMALL_FONT,
+     +          $SANS_SERIF_FONT, $GOTHIC_FONT, $HORIZ_DIR,
+     +          $VERT_DIR, $USER_CHAR_SIZE
+*
+        PARAMETER($DEFAULT_FONT    = 0)  ! 8x8 bit mapped font
+        PARAMETER($TRIPLEX_FONT    = 1)  ! "Stroked" fonts
+        PARAMETER($SMALL_FONT      = 2)
+        PARAMETER($SANS_SERIF_FONT = 3)
+        PARAMETER($GOTHIC_FONT     = 4)
+        PARAMETER($HORIZ_DIR       = 0)   ! left to right
+        PARAMETER($VERT_DIR        = 1)   ! bottom to top
+        PARAMETER($USER_CHAR_SIZE  = 0)   ! user-defined char size
+
+*
+* Line styles for get/setlinestyle
+*
+      INTEGER*2 $SOLID_LINE, $DOTTED_LINE, $CENTER_LINE,
+     +          $DASHED_LINE, $USERBIT_LINE
+*
+        PARAMETER($SOLID_LINE   = 0)
+        PARAMETER($DOTTED_LINE  = 1)
+        PARAMETER($CENTER_LINE  = 2)
+        PARAMETER($DASHED_LINE  = 3)
+        PARAMETER($USERBIT_LINE = 4)       ! user defined line style
+
+*
+* Line widths for get/setlinestyle
+*
+      INTEGER*2 $NORM_WIDTH, $THICK_WIDTH
+*
+        PARAMETER($NORM_WIDTH  = 1)
+        PARAMETER($THICK_WIDTH = 3)
+*
+* Fill patterns for get/setfillstyle
+*
+      INTEGER*2 $EMPTY_FILL, $SOLID_FILL, $LINE_FILL,
+     +          $LTSLASH_FILL, $SLASH_FILL, $BKSLASH_FILL,
+     +          $LTBKSLASH_FILL, $HATCH_FILL, $XHATCH_FILL,
+     +          $INTERLEAVE_FILL, $WIDE_DOT_FILL, $CLOSE_DOT_FILL,
+     +          $USER_FILL
+*
+      PARAMETER($EMPTY_FILL      = 0)   ! fills area in background color
+      PARAMETER($SOLID_FILL      = 1)   ! fills area in solid fill color
+      PARAMETER($LINE_FILL       = 2)   ! --- fill
+      PARAMETER($LTSLASH_FILL    = 3)   ! /// fill
+      PARAMETER($SLASH_FILL      = 4)   ! /// fill with thick lines
+      PARAMETER($BKSLASH_FILL    = 5)   ! \\\ fill with thick lines
+      PARAMETER($LTBKSLASH_FILL  = 6)   ! \\\ fill
+      PARAMETER($HATCH_FILL      = 7)   ! light hatch fill
+      PARAMETER($XHATCH_FILL     = 8)   ! heavy cross hatch fill
+      PARAMETER($INTERLEAVE_FILL = 9)   ! interleaving line fill
+      PARAMETER($WIDE_DOT_FILL   = 10)  ! Widely spaced dot fill
+      PARAMETER($CLOSE_DOT_FILL  = 11)  ! Closely spaced dot fill
+      PARAMETER($USER_FILL       = 12)  ! user defined fill
+
+*
+* BitBlt operators for putimage
+*
+      INTEGER*2 $COPY_PUT, $XOR_PUT, $OR_PUT, $AND_PUT, $NOT_PUT
+*
+       PARAMETER($COPY_PUT       = 0)    !  MOV
+       PARAMETER($XOR_PUT        = 1)    !  XOR
+       PARAMETER($OR_PUT         = 2)    !  OR
+       PARAMETER($AND_PUT        = 3)    !  AND
+       PARAMETER($NOT_PUT        = 4)    !  NOT
+*
+      INTEGER*2 $MAXCOLORS
+        PARAMETER($MAXCOLORS  = 15)
+
+      INTEGER*2 $UNPRESSED
+      INTEGER*2 $PRESSED
+       PARAMETER($UNPRESSED = 1)
+       PARAMETER($PRESSED  = 0)
+
+
+
+      STRUCTURE/ palettetype /
+        integer*1 size
+        integer*1 colors($MAXCOLORS+1)
+      END STRUCTURE
+
+      STRUCTURE/ linesettingstype /
+        integer*2 linestyle
+        integer*2 upattern
+        integer*2 thickness
+      END STRUCTURE
+
+      STRUCTURE/ textsettingstype /
+        integer*2 font
+        integer*2 direction
+        integer*2 charsize
+        integer*2 horiz
+        integer*2 vert
+      END STRUCTURE
+
+      STRUCTURE/ fillsettingstype /
+        integer*2 pattern
+        integer*2 color
+      END STRUCTURE
+
+      STRUCTURE/ pointtype /
+        integer*2 x, y
+      END STRUCTURE
+
+      STRUCTURE/ viewporttype /
+        integer*2 left, top, right, bottom
+        integer*2 clip
+      END STRUCTURE
+
+      STRUCTURE/ arccoordstype /
+        integer*2 x, y
+        integer*2 xstart, ystart, xend, yend
+      END STRUCTURE
+
+      STRUCTURE/ float_window/
+           real*4 left, bottom, right, top
+      END STRUCTURE
+
+      STRUCTURE/ buttonc /
+        INTEGER*2 x, y
+        INTEGER*4 str
+      END STRUCTURE
+
+$LIST
+

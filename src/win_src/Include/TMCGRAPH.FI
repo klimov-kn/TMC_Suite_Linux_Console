@@ -1,0 +1,745 @@
+$NOLIST
+*tmcgraph.fi - declare constants and functions for graphics library
+*
+*   Copyright (c) 1991 TAMIC_soft group.  All rights reserved.
+*
+*Purpose:
+*   This file declares the graphics library functions and
+*   the manifest constants that are used with them.
+*
+*******************************************************************************
+$NOTRUNCATE
+$NOTSTRICT
+
+*
+*    void   far _Cdecl arc( int x, int y, int stangle, int endangle, int radius);
+*
+      INTERFACE TO SUBROUTINE
+     +    arc[FAR,C,ALIAS:"_arc"]( x, y, st, en, rad )
+        INTEGER*2  x, y, st, en, rad
+      END
+
+*
+*    void _far _Cdecl bar( int left, int top, int right, int bottom);
+*
+      INTERFACE TO SUBROUTINE
+     +    bar[FAR,C,ALIAS:"_bar"]( left, top, right, bottom )
+        INTEGER*2 left, top, right, bottom
+      END
+
+*
+*   void   far _Cdecl bar3d( int left, int top, int right, int bottom,
+*                            int depth, int topflag);
+*
+      INTERFACE TO SUBROUTINE
+     +    bar3d[FAR,C,ALIAS:"_bar3d"]( left, top, right, bottom,
+     +                                 depth, topflag )
+        INTEGER*2 left, top, right, bottom, depth, topflag
+      END
+
+
+*
+*   void   far _Cdecl cleardevice(void);
+*
+      INTERFACE TO SUBROUTINE
+     +    cleardevice[FAR,C,ALIAS:"_cleardevice"]
+      END
+
+*
+*   void   far _Cdecl circle( int x, int y, int radius);
+*
+      INTERFACE TO SUBROUTINE
+     +        circle[FAR,C,ALIAS:"_circle"]
+     +  ( x, y, radius )
+        INTEGER*2 x, y, radius
+      END
+*
+*    void _far closegraph( void );
+*
+      INTERFACE TO SUBROUTINE
+     +    closegraph[FAR,C,ALIAS:"_closegraph"]
+      END
+
+
+*
+*     void   far _Cdecl ellipse(int x, int y, int stangle, int endangle,
+*                               int xradius, int yradius);
+*
+      INTERFACE TO SUBROUTINE
+     +  ellipse[FAR,C,ALIAS:"_ellipse"]( x, y, sta, enda, xrad, yrad )
+        INTEGER*2 x, y, sta, enda, xrad, yrad
+      END
+*
+*     void   far _Cdecl fillellipse( int x, int y, int xradius, int yradius );
+*
+      INTERFACE TO SUBROUTINE
+     +    fillellipse[FAR,C,ALIAS:"_fillellipse"]( x, y, xrad, yrad )
+        INTEGER*2 x, y, xrad, yrad
+      END
+*
+*     void   far _Cdecl fillpoly(int numpoints, int far *polypoints);
+*
+      INTERFACE TO SUBROUTINE
+     +    fillpoly[FAR,C,ALIAS:"_fillpoly"]( num, poly )
+        INTEGER*2 num
+        structure/ PTS/
+           integer*2 x, y
+        end structure
+        record/pts/ poly[FAR,REFERENCE]
+      END
+
+*
+*     void   far _Cdecl getarccoords(struct arccoordstype far *arccoords);
+*
+      INTERFACE TO SUBROUTINE
+     +    getarccoords[FAR,C,ALIAS:"_getarccoords"]( ac )
+       STRUCTURE/ arccoordstype /
+        integer*2 x, y
+        integer*2 xstart, ystart, xend, yend
+       END STRUCTURE
+       RECORD/ arccoordstype / ac[FAR,REFERENCE]
+      END
+*
+*     void   far _Cdecl getaspectratio(int far *xasp, int far *yasp);
+*
+      INTERFACE TO SUBROUTINE
+     +    getaspectratio[FAR,C,ALIAS:"_getaspectratio"]( xasp, yasp )
+        INTEGER*2 xasp[FAR,REFERENCE]
+        INTEGER*2 yasp[FAR,REFERENCE]
+      END
+*
+*     int        far _Cdecl getcolor(void);
+*
+      INTERFACE TO FUNCTION getcolor()
+        INTEGER*2 getcolor[FAR,C,ALIAS:"_getcolor"]
+      END
+
+*
+*       char * far _Cdecl getdrivername( void );
+*
+      INTERFACE TO FUNCTION getdrivername()
+        INTEGER*4 getdrivername
+     +               [FAR,C,ALIAS:"_getdrivername"]
+      END
+*
+*    void   far _Cdecl getfillsettings(struct fillsettingstype far *fillinfo);
+*
+      INTERFACE TO SUBROUTINE
+     +    getfillsettings[FAR,C,ALIAS:"_getfillsettings"]( fs )
+       STRUCTURE/ fillsettingstype /
+         integer*2 pattern
+         integer*2 color
+       END STRUCTURE
+       RECORD/ fillsettingstype / fs[FAR,REFERENCE]
+      END
+
+*
+*     int        far _Cdecl getgraphmode(void);
+*
+      INTERFACE TO FUNCTION getgraphmode()
+        INTEGER*2 getgraphmode
+     +               [FAR,C,ALIAS:"_getgraphmode"]
+      END
+*
+*
+*    void   far _Cdecl getimage( int left, int top, int right, int bottom,
+*                                 void far *bitmap);
+*
+      INTERFACE TO SUBROUTINE
+     +    getimage[FAR,C,ALIAS:"_getimage"]( left, top, right, bottom,
+     +                                       bitmap )
+       INTEGER*2 left, top, right, bottom
+       INTEGER*4 bitmap
+      END
+
+*
+*    void   far _Cdecl getlinesettings(struct linesettingstype far *lineinfo);
+*
+      INTERFACE TO SUBROUTINE
+     +    getlinesettings[FAR,C,ALIAS:"_getlinesettings"]( li )
+       STRUCTURE/ linesettingstype /
+         integer*2 linestyle
+         integer*2 upattern
+         integer*2 thickness
+       END STRUCTURE
+       RECORD/ linesettingstype / li[FAR,REFERENCE]
+      END
+
+*
+*    int  _far _Cdecl getmaxcolor( void );
+*
+      INTERFACE TO FUNCTION getmaxcolor()
+        INTEGER*2 getmaxcolor
+     +               [FAR,C,ALIAS:"_getmaxcolor"]
+      END
+*
+*    int        far _Cdecl getmaxx(void);
+*
+      INTERFACE TO FUNCTION getmaxx()
+        INTEGER*2 getmaxx[FAR,C,ALIAS:"_getmaxx"]
+      END
+
+*
+*    int        far _Cdecl getmaxy(void);
+*
+      INTERFACE TO FUNCTION getmaxy()
+        INTEGER*2 getmaxy[FAR,C,ALIAS:"_getmaxy"]
+      END
+
+*
+*   int        far _Cdecl getx(void);
+*
+      INTERFACE TO FUNCTION getx()
+        INTEGER*2 getx[FAR,C,ALIAS:"_getx"]
+      END
+
+*
+*   int        far _Cdecl gety(void);
+*
+      INTERFACE TO FUNCTION gety()
+        INTEGER*2 gety[FAR,C,ALIAS:"_gety"]
+      END
+
+*
+*   char * far _Cdecl getmodename( int mode_number );
+*
+      INTERFACE TO FUNCTION getmodename( mode )
+        INTEGER*4 getmodename
+     +               [FAR,C,ALIAS:"_getmodename"]
+        INTEGER*2 mode
+      END
+
+*
+*    void _far _Cdecl getpalette(struct palettetype far *palette);
+*
+      INTERFACE TO SUBROUTINE
+     +  getpalette[FAR, C, ALIAS:"_getpalette"]( palette )
+
+        STRUCTURE/palettetype/
+          integer*1 size
+          integer*1 colors(16)
+        END STRUCTURE
+        RECORD/palettetype/ palette[FAR, REFERENCE]
+      END
+
+*
+*unsigned   far _Cdecl getpixel(int x, int y);
+*
+      INTERFACE TO FUNCTION getpixel( x, y )
+        INTEGER*2 getpixel
+     +               [FAR,C,ALIAS:"_getpixel"]
+        INTEGER*2 x, y
+      END
+
+*
+*    void   far _Cdecl gettextsettings(struct textsettingstype far *texttypeinfo);
+*
+      INTERFACE TO SUBROUTINE
+     +  gettextsettings[FAR, C, ALIAS:"_gettextsettings"]( ts )
+       STRUCTURE/ textsettingstype /
+         integer*2 font
+         integer*2 direction
+         integer*2 charsize
+         integer*2 horiz
+         integer*2 vert
+       END STRUCTURE
+
+       RECORD/textsettingstype / ts[FAR, REFERENCE]
+      END
+
+*
+*    void   far _Cdecl getviewsettings(struct viewporttype far *viewport);
+*
+      INTERFACE TO SUBROUTINE
+     +  getviewsettings[FAR, C, ALIAS:"_getviewsettings"]( vp )
+
+        STRUCTURE/viewporttype/
+          integer*2 left, top, right, bottom
+          integer*2 clip
+        END STRUCTURE
+        RECORD/viewporttype/ vp[FAR, REFERENCE]
+      END
+
+*
+*      char * far _Cdecl grapherrormsg(int errorcode);
+*
+      INTERFACE TO FUNCTION grapherrormsg( errorcode)
+        INTEGER*4 grapherrormsg
+     +            [FAR,C,ALIAS:"_grapherrormsg"]
+        INTEGER*2 errorcode
+      END
+
+*
+*   int        far _Cdecl graphresult(void);
+*
+      INTERFACE TO FUNCTION graphresult()
+        INTEGER*2 graphresult
+     +            [FAR,C,ALIAS:"_graphresult"]
+      END
+
+*
+*      int  far _Cdecl H_char_height( void );
+*
+      INTERFACE TO FUNCTION H_char_height()
+        INTEGER*2 H_char_height
+     +            [FAR,C,ALIAS:"_H_char_height"]
+      END
+
+*
+*       int  far _Cdecl H_char_width( void );
+*
+      INTERFACE TO FUNCTION H_char_width()
+        INTEGER*2 H_char_width
+     +            [FAR,C,ALIAS:"_H_char_width"]
+      END
+*
+*      void   far _Cdecl linerel(int dx, int dy);
+*
+      INTERFACE TO SUBROUTINE
+     +    linerel[FAR,C,ALIAS:"_linerel"](x, y)
+       INTEGER*2 x, y
+      END
+
+*
+*      void   far _Cdecl lineto(int dx, int dy);
+*
+      INTERFACE TO SUBROUTINE
+     +    lineto[FAR,C,ALIAS:"_lineto"](x, y)
+       INTEGER*2 x, y
+      END
+*
+*      void   far _Cdecl moverel(int dx, int dy);
+*
+      INTERFACE TO SUBROUTINE
+     +    moverel[FAR,C,ALIAS:"_moverel"](x, y)
+       INTEGER*2 x, y
+      END
+
+*
+*      void   far _Cdecl moveto(int x, int y);
+*
+      INTERFACE TO SUBROUTINE
+     +    moveto[FAR,C,ALIAS:"_moveto"](x, y)
+       INTEGER*2 x, y
+      END
+*
+*    void _far init_graph( void );
+*
+      INTERFACE TO SUBROUTINE
+     +    init_graph[FAR,C,ALIAS:"_init_graph"]
+      END
+*
+*   void   far _Cdecl initgraph(int  far *graphdriver, int  far *graphmode, char far *pathtodriver);
+*
+      INTERFACE TO SUBROUTINE
+     +    initgraph[FAR,C,ALIAS:"_initgraph"](graphdriver, graphmode,
+     +                                        path )
+       INTEGER*2 graphdriver[FAR,REFERENCE]
+       INTEGER*2 graphmode[FAR,REFERENCE]
+       CHARACTER*(*) path[FAR,REFERENCE]
+      END
+*
+*    unsigned   far _Cdecl imagesize(int left, int top, int right, int bottom);
+*
+      INTERFACE TO FUNCTION imagesize( left, top, right, bottom )
+        INTEGER*2 imagesize[FAR,C,ALIAS:"_imagesize"]
+        INTEGER*2 left, top, right, bottom
+      END
+
+*
+*    void   far _Cdecl line(int x1, int y1, int x2, int y2);
+*
+      INTERFACE TO SUBROUTINE
+     +    line[FAR,C,ALIAS:"_line"]( x1, y1, x2, y2 )
+        INTEGER*2 x1, y1, x2, y2
+      END
+*
+*    void   far _Cdecl putimage(int left, int top, void far *bitmap, int op);
+*
+      INTERFACE TO SUBROUTINE
+     +    putimage[FAR,C,ALIAS:"_putimage"]( left, top, bitmap, flag )
+        INTEGER*2 left, top, flag
+        INTEGER*4 bitmap
+      END
+*
+*   void   far _Cdecl pieslice(int x, int y, int stangle, int endangle,
+*                              int radius);
+*
+      INTERFACE TO SUBROUTINE
+     +    pieslice[FAR,C,ALIAS:"_pieslice"]
+     +            ( x, y, st, en, rad )
+        INTEGER*2 x , y, st, en, rad
+      END
+
+*
+*    void   far _Cdecl putpixel(int x, int y, int color);
+*
+      INTERFACE TO SUBROUTINE
+     +    putpixel[FAR,C,ALIAS:"_putpixel"]
+     +            ( x, y, color )
+        INTEGER*2 x , y, color
+      END
+*
+*    void _far _Cdecl rectangl( int left, int top, int right, int bottom);
+*
+      INTERFACE TO SUBROUTINE
+     +    rectangle[FAR,C,ALIAS:"_rectangle"]
+     +            ( left, top, right, bottom )
+        INTEGER*2 left, top, right, bottom
+      END
+
+*
+*   void   far _Cdecl setallpalette(struct palettetype far *palette);
+*
+      INTERFACE TO SUBROUTINE
+     +    setallpalette[FAR,C,ALIAS:"_setallpalette"]
+     +            ( palette )
+      STRUCTURE/ palettetype /
+        integer*1 size
+        integer*1 colors(16)
+      END STRUCTURE
+      record/palettetype/ palette[FAR,REFERENCE]
+      END
+
+*
+*   void   _far _Cdecl setfillstyle(int pattern, int color);
+*
+      INTERFACE TO SUBROUTINE
+     +    setfillstyle[FAR,C,ALIAS:"_setfillstyle"]
+     +            ( pattern, color )
+        INTEGER*2 pattern, color
+      END
+
+
+*
+*   void   _far _Cdecl setcolor(int color);
+*
+      INTERFACE TO SUBROUTINE
+     +        setcolor[FAR,C,ALIAS:"_setcolor"]
+     +  ( color )
+        INTEGER*2 color
+      END
+
+*
+*       void   far _Cdecl setgraphmode(int mode);
+*
+      INTERFACE TO SUBROUTINE
+     +        setgraphmode[FAR,C,ALIAS:"_setgraphmode"]
+     +  ( mode )
+        INTEGER*2 mode
+      END
+
+*
+*     void   far _Cdecl setlinestyle(int linestyle, unsigned upattern,
+*         int thickness);
+*
+      INTERFACE TO SUBROUTINE
+     +        setlinestyle[FAR,C,ALIAS:"_setlinestyle"]
+     +  ( linestyle, upattern, thickness )
+        INTEGER*2 linestyle, thickness
+        INTEGER*2 upattern
+      END
+
+*
+*   void   far _Cdecl setpalette(int colornum, int color);
+*
+      INTERFACE TO SUBROUTINE
+     +        setpalette[FAR,C,ALIAS:"_setpalette"]
+     +  ( colornum, color )
+        INTEGER*2 colornum, color
+      END
+*
+*   void   far _Cdecl settextjustify(int horiz, int vert);
+*
+      INTERFACE TO SUBROUTINE
+     +        settextjustify[FAR,C,ALIAS:"_settextjustify"]
+     +  ( hor, ver )
+        INTEGER*2 hor, ver
+      END
+*
+*   void   far _Cdecl settextstyle(int font, int direction, int charsize);
+*
+      INTERFACE TO SUBROUTINE
+     +        settextstyle[FAR,C,ALIAS:"_settextstyle"]
+     +  ( font, direction, charsize )
+        INTEGER*2 font, direction, charsize
+      END
+*
+*     void   far _Cdecl setusercharsize(int multx, int divx, int multy, int divy);
+*
+      INTERFACE TO SUBROUTINE
+     +        setusercharsize[FAR,C,ALIAS:"_setusercharsize"]
+     +  ( mx, dx, my, dy )
+        INTEGER*2 mx, dx, my, dy
+      END
+
+*
+*      void   far _Cdecl setviewport(int left, int top, int right, int bottom, int clip);
+*
+      INTERFACE TO SUBROUTINE
+     +        setviewport[FAR,C,ALIAS:"_setviewport"]
+     +  ( left, top, right, bottom, clip )
+        INTEGER*2 left, top, right, bottom, clip
+      END
+*
+*      void   far _Cdecl outtext(char far *textstring);
+*
+      INTERFACE TO SUBROUTINE
+     +        outtext[FAR,C,ALIAS:"_outtext"]
+     +  ( str )
+        CHARACTER*(*) str[FAR,REFERENCE]
+      END
+
+*
+      INTERFACE TO SUBROUTINE
+     +        outtextxy[FAR,C,ALIAS:"_outtextxy"]
+     +  ( x, y, str )
+        INTEGER*2 x,y
+        CHARACTER*(*) str[FAR,REFERENCE]
+      END
+
+*
+*     void   far _Cdecl restorecrtmode(void);
+*
+      INTERFACE TO SUBROUTINE
+     +        restorecrtmode[FAR,C,ALIAS:"_restorecrtmode"]
+      END
+
+
+*
+*   void _far _Cdecl set_tgi_path( char _far *path );
+*
+      INTERFACE TO SUBROUTINE
+     +   set_tgi_path[FAR,C,ALIAS:"_set_tgi_path"]
+     +               (path)
+        CHARACTER*(*) path[FAR,REFERENCE]
+      END
+
+*
+*  int        far _Cdecl textheight(char far *textstring);
+*
+      INTERFACE TO FUNCTION textheight( string )
+        INTEGER*2 textheight
+     +               [FAR,C,ALIAS:"_textheight"]
+        CHARACTER*(*) string[FAR,REFERENCE]
+      END
+*
+* int        far _Cdecl textwidth(char far *textstring);
+*
+      INTERFACE TO FUNCTION textwidth( string )
+        INTEGER*2 textwidth
+     +               [FAR,C,ALIAS:"_textwidth"]
+        CHARACTER*(*) string[FAR,REFERENCE]
+      END
+
+
+*
+*   void _far t_clearscreen( void )
+*
+      INTERFACE TO SUBROUTINE
+     +        t_clearscreen[FAR,C,ALIAS:"_t_clearscreen"]
+      END
+
+
+*
+*   void _far t_gotoxy( int x, int y )
+*
+      INTERFACE TO SUBROUTINE
+     +        t_gotoxy[FAR,C,ALIAS:"_t_gotoxy"]
+     +  ( x, y )
+        INTEGER*2 x, y
+      END
+
+
+*
+*   void _far t_cursorOFF( void )
+*
+      INTERFACE TO SUBROUTINE
+     +        t_cursorOFF[FAR,C,ALIAS:"_t_cursorOFF"]
+      END
+
+*
+*   void _far t_cursorON( void )
+*
+      INTERFACE TO SUBROUTINE
+     +        t_cursorON[FAR,C,ALIAS:"_t_cursorON"]
+      END
+
+*
+*   int gprintf( int *xloc, int *yloc, char *fmt, ... )
+*
+      INTERFACE TO FUNCTION gprintf( x, y, format )
+        INTEGER*2 gprintf
+     +               [FAR,C,VARYING,ALIAS:"_gprintf"]
+        INTEGER*2 x[FAR,REFERENCE], y[FAR,REFERENCE]
+        CHARACTER*(*) format[FAR,REFERENCE]
+      END
+
+*
+*    int far t_printfxy( int x, int y, char *format_string, ...)
+*
+
+      INTERFACE TO FUNCTION t_printfxy( x, y, format )
+        INTEGER*2 t_printfxy
+     +               [FAR,C,VARYING,ALIAS:"_t_printfxy"]
+        INTEGER*2 x, y
+        CHARACTER*(*) format[FAR,REFERENCE]
+      END
+
+
+*
+*    int far t_printf( char *format_string, ...)
+*
+
+      INTERFACE TO FUNCTION t_printf( format )
+        INTEGER*2 t_printf
+     +               [FAR,C,VARYING,ALIAS:"_t_printf"]
+        CHARACTER*(*) format[FAR,REFERENCE]
+      END
+
+*
+*    int far printf( char *format_string, ...)
+*
+
+      INTERFACE TO FUNCTION printf( format )
+        INTEGER*2 printf
+     +               [FAR,C,VARYING,ALIAS:"_printf"]
+        CHARACTER*(*) format[FAR,REFERENCE]
+      END
+
+*
+*    int far printfxy( int x, int y, char *format_string, ...)
+*
+
+      INTERFACE TO FUNCTION printfxy( x, y, format )
+        INTEGER*2 printfxy
+     +               [FAR,C,VARYING,ALIAS:"_printfxy"]
+        INTEGER*2 x, y
+        CHARACTER*(*) format[FAR,REFERENCE]
+      END
+
+      INTERFACE TO FUNCTION sprintf( buff, format )
+        INTEGER*2 sprintf
+     +               [FAR,C,VARYING,ALIAS:"_sprintf"]
+        character*(*) buff[FAR,REFERENCE]
+        CHARACTER*(*) format[FAR,REFERENCE]
+      END
+
+      INTERFACE TO FUNCTION kb_getch( )
+        INTEGER*2 kb_getch[FAR,C,ALIAS:"_kb_getch"]
+      END
+
+      INTERFACE TO FUNCTION kb_inkey( )
+        INTEGER*2 kb_inkey[FAR,C,ALIAS:"_kb_inkey"]
+      END
+*
+* int  _far _Cdecl get_norm_transf( int nt_num, struct viewporttype far *vp,
+*                                      struct float_window far *fvp,
+*                                      struct float_window far *fwn);
+*
+      INTERFACE TO FUNCTION get_norm_transf
+     +       [FAR,C,ALIAS:"_get_norm_transf"](nt_num, vp, fvp, fwn)
+        INTEGER*2 get_norm_transf, nt_num
+        STRUCTURE/ viewporttype /
+          integer*2 left, top, right, bottom
+          integer*2 clip
+        END STRUCTURE
+        STRUCTURE/ float_window/
+           real*4 left, bottom, right, top
+        END STRUCTURE
+        record/float_window/fvp[FAR,REFERENCE] ,fwn[FAR,REFERENCE]
+        record/viewporttype/vp[FAR,REFERENCE]
+
+      END
+
+
+*
+*       int  far _Cdecl set_norm_transf( int nt_num );
+*
+      INTERFACE TO FUNCTION set_norm_transf
+     +       [FAR,C,ALIAS:"_set_norm_transf"](nt_num)
+        INTEGER*2 set_norm_transf, nt_num
+      END
+
+*
+*       int  far _Cdecl set_viewport( int nt_num,
+*                       float left, float bottom, float right, float top );
+*
+      INTERFACE TO FUNCTION set_viewport
+     +       [FAR,C,ALIAS:"_set_viewport"](nt_num, left, bottom, right,
+     +                                     top)
+        INTEGER*2 set_viewport, nt_num
+        real*4 left, bottom, right, top
+      END
+
+*
+*  int  far _Cdecl set_window( int nt_num,
+*                      float left, float bottom, float right, float top );
+*
+      INTERFACE TO FUNCTION set_window
+     +       [FAR,C,ALIAS:"_set_window"](nt_num, left, bottom, right,
+     +                                     top)
+        INTEGER*2 set_window, nt_num
+        real*4 left, bottom, right, top
+      END
+
+*
+*       void _far set_button_size( int width, int height );
+*
+      INTERFACE TO SUBROUTINE
+     +        set_button_size[FAR,C,ALIAS:"_set_button_size"]
+     +     ( width, height )
+        integer*2 width, height
+      END
+
+*
+*        void _far set_button_depth( int dx, int dy );
+*
+      INTERFACE TO SUBROUTINE
+     +        set_button_depth[FAR,C,ALIAS:"_set_button_depth"]
+     +     ( dx, dy )
+        integer*2 dx, dy
+      END
+
+*
+*      void _far set_button_colors( int light, int front, int shadow );
+*
+      INTERFACE TO SUBROUTINE
+     +        set_button_colors[FAR,C,ALIAS:"_set_button_colors"]
+     +     ( light, front, shadow )
+        integer*2 light, front, shadow
+      END
+
+*
+*    void _far set_button_string_colors( int light, int shadow );
+*
+      INTERFACE TO SUBROUTINE
+     +        set_button_string_colors
+     +         [FAR,C,ALIAS:"_set_button_string_colors"]
+     +     ( light, shadow )
+        integer*2 light, shadow
+      END
+
+*
+*      void _far button( int x, int y, char _far *str, int flag );
+*
+      INTERFACE TO SUBROUTINE
+     +        button[FAR,C,ALIAS:"_button"]
+     +     ( x, y, str, flag )
+        integer*2 x, y, flag
+        integer*4 str
+      END
+
+
+$LIST
+
+
+
+
+
+
+
+
+
+
+

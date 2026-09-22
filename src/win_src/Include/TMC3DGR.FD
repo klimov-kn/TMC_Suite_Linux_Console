@@ -1,0 +1,26 @@
+$NOLIST
+$NOTRUNCATE
+$NOTSTRICT
+
+*
+**  TAMIC_soft(R) 1991 v1.00
+**
+** Macros and decloration for 3D TAMIC graphics programm
+**
+**
+**
+*
+
+      STRUCTURE/ f3D_VECTOR  /
+       real*4 x
+       real*4 y
+       real*4 z
+      END STRUCTURE
+
+      STRUCTURE/ f3D_POINT  /
+       real*4 x
+       real*4 y
+       real*4 z
+      END STRUCTURE
+
+

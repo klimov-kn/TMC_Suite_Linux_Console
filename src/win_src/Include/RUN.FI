@@ -1,0 +1,118 @@
+$NOTRUNCATE
+$NOTSTRICT
+
+c
+      INTERFACE TO FUNCTION put_error_messege( code )
+        INTEGER*2 put_error_messege
+     +               [FAR,C,VARYING,ALIAS:"_put_error_messege"]
+        INTEGER*2 code
+      END
+
+
+*
+*    int far check_stop_p( int  )
+*
+      INTERFACE TO FUNCTION check_stop_p( dummy )
+        INTEGER*2 check_stop_p[FAR,C,ALIAS:"_check_stop_p"]
+        INTEGER*2 dummy
+      END
+
+
+*
+*    float _far get_data_const_delta( void );
+*
+      INTERFACE TO SUBROUTINE
+     +    get_data_const_delta[FAR,C,ALIAS:"_get_data_const_delta"]
+     +      ( delta )
+       REAL*4 delta[FAR,REFERENCE]
+      END
+
+*
+*   void far stat_messege( int item_num, char far *string)
+*
+      INTERFACE TO SUBROUTINE
+     +        stat_messege[FAR,C,ALIAS:"_stat_messege"]( num, str)
+        INTEGER*2 num
+        CHARACTER*(*) str[FAR,REFERENCE]
+      END
+
+*
+*   void far print_matrix( int dim, float _far *m)
+*
+      INTERFACE TO SUBROUTINE
+     +        print_matrix[FAR,C,ALIAS:"_print_matrix"]
+     +           ( dim, m )
+        INTEGER*2 dim
+        REAL*4 m[FAR,REFERENCE]
+      END
+
+*
+*   void far put_time( void )
+*
+      INTERFACE TO SUBROUTINE
+     +        put_time[FAR,C,ALIAS:"_put_time"]
+      END
+
+*
+*   void far put_elapsed_time( void )
+*
+      INTERFACE TO SUBROUTINE
+     +        put_elapsed_time[FAR,C,ALIAS:"_put_elapsed_time"]
+      END
+
+
+
+*
+*   void far put_persent( char far *title, int current, int all )
+*
+      INTERFACE TO SUBROUTINE
+     +        put_persent[FAR,C,ALIAS:"_put_persent"]( str, curr, all)
+      CHARACTER*(*) str[FAR,REFERENCE]
+      INTEGER*2 curr, all
+      END
+
+
+*
+*   int far init_list( int far *nsbsp, int list_size)
+*
+      INTERFACE TO FUNCTION init_list( nsbsp, list_size)
+         INTEGER*2 init_list[FAR,C,ALIAS:"_init_list"]
+         INTEGER*2 nsbsp[FAR,REFERENCE]
+         INTEGER*2 list_size
+      END
+
+*
+* void far Drtrn( float x1, float x2, float x3,
+*                 float y1, float y2, float y3 )
+*
+      INTERFACE TO SUBROUTINE
+     +        Drtrn[FAR,C,ALIAS:"_Drtrn"](x1, x2, x3, y1, y2, y3)
+      REAL*4 x1, x2, x3
+      REAL*4 y1, y2, y3
+      END
+
+*
+*   void far set_trn_vp( void )
+*
+      INTERFACE TO SUBROUTINE
+     +        set_trn_vp[FAR,C,ALIAS:"_set_trn_vp"]
+      END
+
+
+
+*
+*   void far set_deflt_vp( void )
+*
+      INTERFACE TO SUBROUTINE
+     +        set_deflt_vp[FAR,C,ALIAS:"_set_deflt_vp"]
+      END
+
+*
+*    int _far fortran is_a_EQ_b( _real a, _real b  )
+*
+      INTERFACE TO FUNCTION is_a_EQ_b( a, b )
+        INTEGER*2 is_a_EQ_b[FAR,PASCAL,ALIAS:"IS_A_EQ_B"]
+        REAL*4    a, b
+      END
+
+
