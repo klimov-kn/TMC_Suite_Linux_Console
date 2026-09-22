@@ -53,7 +53,9 @@ horn.tpl  horn.t  horn.tt  horn.s  horn.ex  horn.AMP  horn.FAZ  horn.DAT
 
 ## Installation
 
-Unpack the archive from the project website — nothing has to be installed:
+Both builds are published in [Releases](../../releases); nothing has to be installed.
+
+The archive — the kernels, the licence and the user manual:
 
 ```
 tar xzf tmc-suite-cli-linux-x86-64.tar.gz
@@ -61,7 +63,16 @@ cd tmc-suite-cli
 ./tmc_rth /full/path/task.tpl
 ```
 
-Requirements: Ubuntu 24.04 LTS or compatible (glibc 2.39), x64. No graphics libraries are needed.
+The AppImage — the same thing as a single file, handy for a compute node or a container:
+
+```
+chmod +x TMC_Suite_CLI-1.0.0-x86_64.AppImage
+./TMC_Suite_CLI-1.0.0-x86_64.AppImage tmc_rth /full/path/task.tpl
+ln -s TMC_Suite_CLI-1.0.0-x86_64.AppImage tmc_rth && ./tmc_rth /full/path/task.tpl
+```
+
+Requirements: x64 and glibc 2.39 or newer — Ubuntu 24.04 LTS and compatible systems. No graphics
+libraries are needed. If the system complains about FUSE, add `--appimage-extract-and-run`.
 
 ## Building from source
 
@@ -172,7 +183,9 @@ horn.tpl  horn.t  horn.tt  horn.s  horn.ex  horn.AMP  horn.FAZ  horn.DAT
 
 ## Установка
 
-Распакуйте архив с сайта проекта — устанавливать ничего не нужно:
+Обе поставки опубликованы в разделе [Releases](../../releases), устанавливать ничего не нужно.
+
+Архив — ядра, лицензия и руководство пользователя:
 
 ```
 tar xzf tmc-suite-cli-linux-x86-64.tar.gz
@@ -180,7 +193,16 @@ cd tmc-suite-cli
 ./tmc_rth /полный/путь/задание.tpl
 ```
 
-Требования: Ubuntu 24.04 LTS или совместимая (glibc 2.39), x64. Графические библиотеки не нужны.
+Образ AppImage — то же самое одним файлом, удобно для счётного узла или контейнера:
+
+```
+chmod +x TMC_Suite_CLI-1.0.0-x86_64.AppImage
+./TMC_Suite_CLI-1.0.0-x86_64.AppImage tmc_rth /полный/путь/задание.tpl
+ln -s TMC_Suite_CLI-1.0.0-x86_64.AppImage tmc_rth && ./tmc_rth /полный/путь/задание.tpl
+```
+
+Требования: x64 и glibc 2.39 или новее — Ubuntu 24.04 LTS и совместимые системы. Графические
+библиотеки не нужны. Если система ругается на FUSE, добавьте ключ `--appimage-extract-and-run`.
 
 ## Сборка из исходников
 
