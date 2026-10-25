@@ -1,92 +1,217 @@
 // tmc_kernel_console.cpp — консольные реализации функций, которые в Windows-сборке
-// жили в GUI-файлах PL_GLFUN.CPP и Pl_iofor.cpp ядер PlanarRT_H и PlanarRT_X.
+// жили в GUI-файлах pl_glfun.cpp и pl_iofor.cpp ядер PlanarRT_H и PlanarRT_X.
 //
 // ОБЩИЙ для обоих ядер: интерфейс (имена/сигнатуры PutTrace/Beep*/Is*Run/формат-
-// геттеров/IsPointInTr) у H и X одинаков (X — копипаст H, R10), а нужные заголовки
-// (<PlanRT_H.h>/<Pl_iofor.h>/<typerth.h>) резолвятся в каталог соответствующего
-// ядра по include-пути цели. Поэтому один и тот же файл компилируется в обе цели
-// (tmc_rth и tmc_rtx) — без дублирования.
+// геттеров/ConsolePrint/IsPointInTr) у H и X одинаков, а нужные заголовки
+// (<planrt_h.h>/<pl_iofor.h>/<typerth.h>) резолвятся в каталог соответствующего
+// ядра по пути включения цели. Один и тот же файл компилируется в обе цели.
 //
-// Эти .cpp в Linux-сборку НЕ входят (PL_GLFUN.CPP — статусбар/звук/потоки MFC,
-// Pl_iofor.cpp — разбор GUI-флагов и хранилище форматов, выставляемых из диалога).
-// Однако счётные модули (TmcRTHRectNode.cpp, TmcRTHNodeDiel.cpp) вызывают часть
-// объявленных там функций. Здесь — их консольные эквиваленты:
-//   * PutTrace/PutStatistics — прогресс в stderr вместо статусбара (диагностика
-//     не теряется; на содержимое выходных файлов не влияет);
-//   * PutModel/PutSinchronizFlag — косметические индикаторы статусбара -> no-op;
-//   * BeepAllEnd/BeepStepEnd — звуковые сигналы окончания -> no-op;
-//   * IsAutoRun/IsDemoRun/IsBatchRun — режимы автозапуска GUI -> FALSE (в CLI
-//     счёт и так всегда полный прогон, окон нет);
-//   * GetMainFramePointer__ — указатель на гл. окно -> nullptr (достижим лишь
-//     при IsAutoRun()==TRUE для закрытия окна, что в CLI не выполняется);
-//   * Get*Format — форматы вывода: возвращаем ДЕФОЛТЫ из Pl_iofor.h. Это важно
-//     для совместимости вывода: в GUI они по умолчанию ровно такие, меняются
-//     только пользователем через диалог, которого в CLI нет.
+// Эти .cpp в Linux-сборку НЕ входят (pl_glfun.cpp — строка состояния, звук,
+// потоки MFC; pl_iofor.cpp — флаги окна и хранилище форматов, выставляемых из
+// диалога). Однако счётные модули (tmcrthrectnode.cpp, tmcrthnodediel.cpp)
+// вызывают часть объявленных там функций. Здесь — их консольные эквиваленты:
+//   * PutTrace/PutStatistics — строка состояния окна -> терминал (stderr):
+//     в терминале — одна обновляемая строка, в файле журнала — сообщения и
+//     раз в 10 с ход расчёта (ключи -q и --verbose меняют подробность);
+//   * PutModel/PutSinchronizFlag — значки строки состояния -> ничего;
+//   * BeepAllEnd/BeepStepEnd — звук окончания -> ничего (пакетный режим);
+//   * IsAutoRun/IsBatchRun — TRUE: консольная версия всегда работает как
+//     пакетный запуск /Arb Windows-версии 5.0 (нет ожидания FieldView, нет звука,
+//     сообщения в консоль); IsDemoRun — FALSE;
+//   * ConsolePrint/ConsoleReportResult/Set|GetRunExitCode — как в pl_iofor.cpp
+//     5.0, но всегда в stdout (окна, к консоли которого надо подключаться, нет);
+//   * Get*Format — форматы вывода: ДЕФОЛТЫ из pl_iofor.h. В GUI они по
+//     умолчанию ровно такие и меняются только из диалога, которого в CLI нет;
+//   * TmcIsWindow/TmcPostMessage — окон нет.
 //
 // ВНИМАНИЕ — единственная вычислительная функция: IsPointInTr (предикат «точка
-// внутри треугольника») перенесена БАЙТ-В-БАЙТ из PL_GLFUN.CPP (строки 120-176),
-// формула/eps/порядок не изменены (правила проекта: математику не трогаем). Закомменти-
-// рованные в оригинале отладочные AfxMessageBox опущены (они и так были комментариями).
+// внутри треугольника») перенесена БАЙТ-В-БАЙТ из pl_glfun.cpp, формула/eps/
+// порядок не изменены (правила проекта: математику не трогаем).
 
-#include <afxwin.h>     // MFC-шим (CString/CWnd/CMainFrame и пр.) — только Linux
-#include <PlanRT_H.h>   // -> resource.h (IDD_*), CPlanRT_HApp (только парсинг)
-#include <Pl_iofor.h>   // авторитетные объявления формат-геттеров, Is*Run, GetMainFramePointer__
-#include <typerth.h>    // авторитетные объявления PutTrace/PutStatistics/PutModel/Beep*/IsPointInTr
+#include <afxwin.h>     // слой MFC (CString/CWnd/CMainFrame и пр.) — только Linux
+#include <planrt_h.h>   // -> resource.h (IDD_*), CPlanRT_HApp (только разбор)
+#include <pl_iofor.h>   // объявления формат-геттеров, Is*Run, ConsolePrint, TMC_EXIT_*
+#include <typerth.h>    // объявления PutTrace/PutStatistics/PutModel/Beep*/IsPointInTr
 
 #include <cmath>
+#include <cstdarg>
 #include <cstdio>
+#include <cstring>
+#include <ctime>
+#include <string>
 
-// --- Прогресс/статус: в Windows писалось в статусбар, здесь — в stderr/no-op ---
-void PutTrace( CString csTrace )
+#include <unistd.h>
+
+#ifndef TMC_KERNEL_EXE
+#define TMC_KERNEL_EXE "tmc_rth"
+#endif
+
+// 0 — тихо (-q), 1 — обычный, 2 — подробный (--verbose). Задаёт tmc_kernel_main.cpp.
+extern int g_nTmcTraceLevel;
+
+// --- Строка состояния -> терминал ------------------------------------------------
+namespace {
+
+bool   g_bStatusShown = false;   // в терминале стоит обновляемая строка
+double g_dStatusLast  = -1.0;    // когда её обновляли (с)
+double g_dLogLast     = -1.0;    // когда ход расчёта в последний раз писали в журнал (с)
+
+double NowSec()
 {
-    std::fprintf( stderr, "%s\n", (const char*)csTrace );
+    struct timespec t;
+    clock_gettime( CLOCK_MONOTONIC, &t );
+    return t.tv_sec + t.tv_nsec * 1e-9;
 }
 
-void PutTrace( char *szTrace )
+bool StderrIsTerminal()
 {
-    std::fprintf( stderr, "%s\n", szTrace ? szTrace : "" );
+    static const int tty = ::isatty( STDERR_FILENO );
+    return tty != 0;
 }
 
-void PutStatistics( CString csTrace )
+// Строка состояния окна: ход расчёта (каждые 100 тактов), «Load prepr.»,
+// «Set block …» и т. п. Отдельной строкой выводятся только важные сообщения:
+// ошибки, предупреждения и на чём идёт счёт (процессор или видеокарта).
+bool IsProgress( const char *s )
 {
-    std::fprintf( stderr, "%s\n", (const char*)csTrace );
+    if( std::strstr( s, "rror" ) || std::strstr( s, "WARN" ) || std::strstr( s, "arning" ) ||
+        std::strstr( s, "cancel" ) || std::strncmp( s, "GPU", 3 ) == 0 ||
+        std::strncmp( s, "CPU", 3 ) == 0 )
+        return false;
+    return true;
 }
 
-void PutStatistics( char *szTrace )
+// Убрать обновляемую строку перед обычным выводом.
+void ClearStatus()
 {
-    std::fprintf( stderr, "%s\n", szTrace ? szTrace : "" );
+    if( g_bStatusShown )
+    {
+        std::fputs( "\r\033[K", stderr );
+        std::fflush( stderr );
+        g_bStatusShown = false;
+    }
 }
+
+void ShowStatus( const char *s, bool bStatistics )
+{
+    if( g_nTmcTraceLevel <= 0 || s == nullptr ) return;
+
+    if( g_nTmcTraceLevel >= 2 )                       // всё, построчно (как версия 1.0)
+    {
+        if( s[0] ) std::fprintf( stderr, "%s\n", s );
+        return;
+    }
+
+    const bool progress = bStatistics || IsProgress( s );
+    if( StderrIsTerminal() )
+    {
+        if( !progress )
+        {
+            ClearStatus();
+            std::fprintf( stderr, "%s\n", s );
+            return;
+        }
+        if( !s[0] || std::strcmp( s, " " ) == 0 ) return;
+        const double t = NowSec();
+        if( g_bStatusShown && t - g_dStatusLast < 0.2 ) return;
+        g_dStatusLast = t;
+        std::fprintf( stderr, "\r%s\033[K", s );
+        std::fflush( stderr );
+        g_bStatusShown = true;
+        return;
+    }
+
+    // Журнал (вывод в файл или канал): сообщения — все, ход — раз в 10 с.
+    if( bStatistics ) return;
+    if( progress )
+    {
+        if( !s[0] || std::strcmp( s, " " ) == 0 ) return;
+        const double t = NowSec();
+        if( g_dLogLast >= 0.0 && t - g_dLogLast < 10.0 ) return;
+        g_dLogLast = t;
+    }
+    std::fprintf( stderr, "%s\n", s );
+}
+
+} // namespace
+
+void PutTrace( CString csTrace )        { ShowStatus( (const char*)csTrace, false ); }
+void PutTrace( char *szTrace )          { ShowStatus( szTrace ? szTrace : "", false ); }
+void PutStatistics( CString csTrace )   { ShowStatus( (const char*)csTrace, true ); }
+void PutStatistics( char *szTrace )     { ShowStatus( szTrace ? szTrace : "", true ); }
 
 void PutModel( void )
 {
-    // Косметический индикатор модели (Float/Double) в статусбаре — в CLI не нужен.
+    // Значок модели (Float/Double) в строке состояния — в CLI не нужен.
 }
 
 void PutSinchronizFlag( BOOL /*bTopologyFlag*/, BOOL /*bFieldFlag1*/, BOOL /*bSinchFlag1*/ )
 {
-    // Косметический индикатор флагов вывода в статусбаре — в CLI не нужен.
+    // Значки флагов вывода в строке состояния — в CLI не нужны.
 }
 
-// --- Звуковые сигналы окончания (периферия) -> no-op ------------------------
+// --- Звуковые сигналы окончания -> ничего (как /Arb, N-11) ------------------
 void BeepStepEnd( int /*i*/ ) {}
 void BeepAllEnd( void ) {}
 
-// --- Режимы автозапуска GUI: в консоли всегда «полный прогон без окон» -------
-BOOL IsAutoRun( void )  { return FALSE; }
+// --- Режим запуска: всегда пакетный (/Arb Windows-версии) -------------------
+BOOL IsAutoRun( void )  { return TRUE; }
+BOOL IsBatchRun( void ) { return TRUE; }
 BOOL IsDemoRun( void )  { return FALSE; }
-BOOL IsBatchRun( void ) { return FALSE; }
 
-// Указатель на главное окно: в CLI окон нет. Используется в PutStepEndSound()
-// только внутри ветки IsAutoRun(), которая здесь не выполняется.
+// Указатель на главное окно: в CLI окон нет.
 CMainFrame *GetMainFramePointer__( void ) { return nullptr; }
 
-// Запуск показа поля во внешнем GUI-вьюере — в headless-CLI не нужен -> no-op.
+// Запуск показа поля во внешнем вьювере (только демонстрационный режим /d).
 void RunOnViewField1( void ) {}
 
-// --- Форматы вывода: дефолты из Pl_iofor.h (FORMAT_OUT_FILE_*) ---------------
-// Возвращаем изменяемые статические буферы (сигнатуры геттеров — char*),
-// инициализированные значениями по умолчанию. Значения те же, что в GUI до
-// любых правок пользователем, поэтому формат выходных файлов совпадает с Windows.
+// --- Окна (PostRunClose Windows-версии): их нет -----------------------------
+BOOL TmcIsWindow( HWND ) { return FALSE; }
+BOOL TmcPostMessage( HWND, UINT, WPARAM, LPARAM ) { return FALSE; }
+
+// --- Код завершения и сообщения пакетного режима (как pl_iofor.cpp 5.0) -----
+static volatile int nRunExitCode = TMC_EXIT_OK;
+
+void SetRunExitCode( int nCode ) { nRunExitCode = nCode; }
+int  GetRunExitCode( void )      { return nRunExitCode; }
+
+// Сообщение в stdout с именем программы: «[tmc_rth] Step 1 of 2: start».
+// Текст — тот же, что пишет Windows-версия в пакетном режиме.
+void ConsolePrint( const char *pszFormat, ... )
+{
+    char szBuf[4096];
+    va_list args;
+    va_start( args, pszFormat );
+    std::vsnprintf( szBuf, sizeof( szBuf ), pszFormat, args );
+    va_end( args );
+
+    ClearStatus();
+    std::fprintf( stdout, "[%s] %s\n", TMC_KERNEL_EXE, szBuf );
+    std::fflush( stdout );
+}
+
+void ConsoleReportResult( void )
+{
+    switch( GetRunExitCode() )
+    {
+        case TMC_EXIT_OK:
+            ConsolePrint( "RESULT %d: OK - all steps are calculated", TMC_EXIT_OK );
+            break;
+        case TMC_EXIT_TPL_ERROR:
+            ConsolePrint( "RESULT %d: ERROR in .tpl file - calculation is not done", TMC_EXIT_TPL_ERROR );
+            break;
+        case TMC_EXIT_CALC_ERROR:
+            ConsolePrint( "RESULT %d: ERROR during calculation", TMC_EXIT_CALC_ERROR );
+            break;
+        default:
+            ConsolePrint( "RESULT %d: STOPPED - calculation is not finished", GetRunExitCode() );
+            break;
+    };
+}
+
+// --- Форматы вывода: дефолты из pl_iofor.h (FORMAT_OUT_FILE_*) ---------------
+// Изменяемые статические буферы (сигнатуры геттеров — char*), заполненные
+// значениями по умолчанию: формат выходных файлов совпадает с Windows.
 char *GetnTFormat( void )
 {
     static char buf[] = FORMAT_OUT_FILE_NTFORMAT;
@@ -118,7 +243,7 @@ char *GetdFieldOutFormat( void )
     return buf;
 }
 
-// --- Вычислительный предикат: ПЕРЕНЁС БАЙТ-В-БАЙТ из PL_GLFUN.CPP ------------
+// --- Вычислительный предикат: ПЕРЕНЕСЁН БАЙТ-В-БАЙТ из pl_glfun.cpp ----------
 // (математика не изменена; см. шапку файла и ISSUES.md).
 BOOL IsPointInTr( double x1, double y1, double x2, double y2, double x3, double y3, double x0, double y0 )
 {
