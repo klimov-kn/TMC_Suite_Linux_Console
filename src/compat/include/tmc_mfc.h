@@ -1,31 +1,31 @@
-// tmc_mfc.h — минимальный слой совместимости MFC для КОНСОЛЬНОГО порта под Linux.
+// tmc_mfc.h — минимальный слой совместимости MFC/win (общий с Linux-версией 5.0 с интерфейсом).
 //
-// MFC на Linux нет и не будет (см. ISSUES.md R3). Счётные библиотеки/ядра TMC
-// используют из MFC по сути только строковый тип CString и несколько win-типов
-// (BOOL/TRUE/FALSE). Здесь — их минимальные эквиваленты, достаточные для сборки
-// консольной версии. Расширяется по мере появления новых требований в модулях.
+// MFC на Linux нет. Вычислительные библиотеки TMC (SFILE95, PREPR, TMCIndan,
+// Expr/Inter, complex, TMCLibError) используют из MFC по сути только строковый
+// тип CString и несколько win-типов (BOOL/TRUE/FALSE). Здесь — их минимальные
+// эквиваленты, достаточные для сборки под g++.
 //
 // ВАЖНО:
-//  * Это НЕ математика — только перенос типов/утилит. Формулы/числа не затрагиваются.
-//  * CString — ТРИВИАЛЬНО-КОПИРУЕМЫЙ тип с единственным членом char* (как у MFC
-//    CString, у которого внутри один указатель на буфер). Это критично: исходники
-//    ядра передают CString в printf/Format через "%s" (varargs). На 32-битном MSVC
-//    объект кладётся на стек как один указатель, и "%s" читает именно его. На g++
-//    (SysV x86-64) нетривиально-копируемый тип (обёртка std::string) передавался бы
-//    "по скрытой ссылке" -> "%s" прочитал бы мусор (UB). Поэтому CString должен
-//    оставаться trivially_copyable (см. static_assert ниже). Память буферов НЕ
-//    освобождается (COW через переаллокацию, как refcount-буфер MFC, только без
-//    free): тривиальная копируемость запрещает освобождающий деструктор. Для режима
-//    "файл -> расчёт -> файл" утечка ограничена одним прогоном и возвращается ОС.
-//  * Сохранён привычный MFC-интерфейс (Format, операторы, неявная конверсия в
-//    const char*), чтобы исходники ядра компилировались без правок их логики.
-//  * Задел под GUI 2027: позже шим можно расширить, не переписывая ядро.
+//  * Это НЕ математика — только перенос типов и утилит. Формулы и числа
+//    не затрагиваются.
+//  * CString — ТРИВИАЛЬНО-КОПИРУЕМЫЙ тип с единственным членом char* (как MFC
+//    CString, внутри которого один указатель на буфер). Это критично: исходники
+//    передают CString в printf/Format через "%s" (varargs). На MSVC объект
+//    кладётся на стек как один указатель, и "%s" читает именно его. Нетривиально
+//    копируемый тип (обёртка над std::string) g++ передавал бы по скрытой ссылке,
+//    и "%s" прочитал бы мусор. Инвариант закреплён static_assert ниже.
+//  * Буферы CString выделяются malloc и не освобождаются (COW через
+//    переаллокацию): освобождающий деструктор сделал бы тип нетривиальным.
+//  * Сообщения об ошибках библиотеки шлют через AfxMessageBox. В GUI-версии
+//    консольный вывод не годится, поэтому здесь точка расширения:
+//    tmc_set_message_handler() ставит обработчик, который GUI подменяет на
+//    QMessageBox. Библиотеки при этом остаются БЕЗ зависимости от Qt.
 //
 // Активен только вне Windows: на самой Windows используется настоящий MFC.
 
 #pragma once
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(TMC_QT_WIN)
 
 #include <string>
 #include <cstdarg>
@@ -33,21 +33,48 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstddef>
+#include <cerrno>
+#ifdef _WIN32
+#include "tmc_winapi.h"
+#else
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "tmc_fileflag.h"
+#endif
 #include <type_traits>
 
+#ifndef _WIN32 // Windows API (под Windows — настоящий windows.h)
 // --- Базовые win-типы -------------------------------------------------------
-typedef int           BOOL;
-typedef char          TCHAR;
-typedef const char*   LPCTSTR;
-typedef char*         LPTSTR;
-typedef const char*   LPCSTR;
-typedef char*         LPSTR;
-typedef unsigned int  UINT;
-typedef void*         LPVOID;
-typedef unsigned long DWORD;
+typedef int            BOOL;
+typedef char           TCHAR;
+typedef const char*    LPCTSTR;
+typedef char*          LPTSTR;
+typedef const char*    LPCSTR;
+typedef char*          LPSTR;
+typedef unsigned int   UINT;
+typedef void*          LPVOID;
+typedef unsigned long  DWORD;
 typedef unsigned short WORD;
 typedef unsigned char  BYTE;
 typedef unsigned long  ULONG;
+// LONG — тот же знаковый 32/64-битный тип, что и long. Встречается в
+// объявлениях GDI (описание растра, размеры), например в tmcgltext.h FieldView.
+typedef long           LONG;
+// Параметры и результат оконного сообщения. Нужны в подписях обработчиков
+// (ON_MESSAGE) и методов CWnd::SendMessage/PostMessage; объявлены здесь,
+// а не в mfc_dialog.h, потому что ими пользуется уже слой окон (mfc_view.h).
+typedef unsigned long  WPARAM;
+typedef long           LPARAM;
+typedef long           LRESULT;
+// Описатель окна. Настоящих окон Windows здесь нет: слой возвращает вместо
+// него указатель на объект Qt, а код Windows-версии сверяет его только с нулём
+// (см. CWnd::GetSafeHwnd).
+typedef void*          HWND;
+// Целое размером с указатель. В подписях обработчиков Windows-версии
+// (например, OnTimer) стоит именно оно: если объявить обработчик с UINT,
+// переопределения не получится и метод не будет вызываться никогда.
+typedef unsigned long  UINT_PTR;
+typedef long           INT_PTR;
 
 #ifndef TRUE
 #define TRUE  1
@@ -55,11 +82,12 @@ typedef unsigned long  ULONG;
 #ifndef FALSE
 #define FALSE 0
 #endif
+#endif // !_WIN32 (Windows API)
 
-// --- Сегментные MSVC-ключевые слова (DOS/16-битное наследие) ---------------
-// На win32/win64 MSVC они уже пустые макросы (см. аналогичную нейтрализацию
-// far/_far/near/_near/fortran в win_src/Include/Typedef.h под _NDP2). Здесь —
-// тот же приём для файлов, которые их используют без подключения Typedef.h.
+// --- Сегментные MSVC-ключевые слова (наследие DOS и 16 бит) -----------------
+// На win32/win64 MSVC они уже пустые макросы (см. нейтрализацию far/near/fortran
+// в win_src/Include/Typedef.h под _NDP2). Здесь тот же приём для файлов,
+// которые используют их, не подключая Typedef.h.
 #ifndef far
 #define far
 #endif
@@ -91,7 +119,8 @@ typedef unsigned long  ULONG;
 #define _cdecl
 #endif
 
-// --- FILETIME (win32-структура; на Linux нужна только как тип-носитель) ----
+#ifndef _WIN32 // Windows API (под Windows — настоящий windows.h)
+// --- FILETIME (win32-структура; на Linux нужна только как тип-носитель) -----
 struct FILETIME
 {
     DWORD dwLowDateTime;
@@ -106,42 +135,100 @@ inline void Sleep(unsigned long ms)
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
-// --- SetFileAttributes (на Linux не нужно: снятие read-only с выходных
-// файлов — не влияет на содержимое/формат файла) ----------------------------
+// --- SetFileAttributes ------------------------------------------------------
+// На Windows снимала read-only с выходных файлов. На содержимое и формат файла
+// не влияет, поэтому под Linux — пустышка с успешным кодом.
 #ifndef FILE_ATTRIBUTE_NORMAL
 #define FILE_ATTRIBUTE_NORMAL 0x80
 #endif
-inline BOOL SetFileAttributes(const char* /*lpFileName*/, DWORD /*dwFileAttributes*/)
+#ifndef FILE_ATTRIBUTE_ARCHIVE
+#define FILE_ATTRIBUTE_ARCHIVE 0x20
+#endif
+#ifndef INVALID_FILE_ATTRIBUTES
+#define INVALID_FILE_ATTRIBUTES 0xFFFFFFFFu
+#endif
+// --- Set/GetFileAttributes ---------------------------------------------------
+// Признак ARCHIVE — протокол «кадр поля прочитан» между ядром и FieldView.
+// Эмуляция на расширенных атрибутах файла — в tmc_fileflag.h (её же берёт
+// FieldView 5.0, который со слоем MFC не собирается).
+inline BOOL SetFileAttributes(const char* lpFileName, DWORD dwFileAttributes)
 {
-    return TRUE;
+    return tmc_fileflag::set(lpFileName, dwFileAttributes == FILE_ATTRIBUTE_ARCHIVE) ? TRUE : FALSE;
 }
 
-// --- AfxMessageBox (консольная замена GUI-окна, см. ISSUES.md R3) ----------
-#include <cstdio>
+inline DWORD GetFileAttributes(const char* fileName)
+{
+    switch (tmc_fileflag::get(fileName)) {
+    case tmc_fileflag::Missing: return DWORD(INVALID_FILE_ATTRIBUTES);
+    case tmc_fileflag::Normal:  return FILE_ATTRIBUTE_NORMAL;
+    default:                    return FILE_ATTRIBUTE_ARCHIVE;
+    }
+}
+
+// --- Строковые функции Windows API ------------------------------------------
+// lstrcpy/lstrlen — те же strcpy/strlen; в однобайтовой сборке Windows это
+// буквально они. Зовутся при заполнении LOGFONT (tmcgltext.cpp,
+// tmcdialogplace.cpp в FieldView).
+inline char* lstrcpy(char* dst, const char* src) { return std::strcpy(dst, src ? src : ""); }
+inline int   lstrlen(const char* s) { return s ? int(std::strlen(s)) : 0; }
+
+#endif // !_WIN32 (Windows API)
+
+// --- Сообщения из библиотек -------------------------------------------------
+// Обработчик по умолчанию пишет в stderr (годится для прогонов из консоли).
+// GUI ставит свой через tmc_set_message_handler и показывает QMessageBox.
+typedef void (*TmcMessageHandler)(const char* text);
+
+inline TmcMessageHandler& tmc_message_handler_slot()
+{
+    static TmcMessageHandler h = nullptr;
+    return h;
+}
+
+inline void tmc_set_message_handler(TmcMessageHandler h)
+{
+    tmc_message_handler_slot() = h;
+}
+
 inline void AfxMessageBox(const char* msg)
 {
-    std::fprintf(stderr, "%s\n", msg ? msg : "");
+    const char* text = msg ? msg : "";
+    if (TmcMessageHandler h = tmc_message_handler_slot())
+        h(text);
+    else
+        std::fprintf(stderr, "%s\n", text);
 }
 
 // --- CString (тривиально-копируемый эквивалент MFC; внутри один char*) ------
-// ВАЖНО: ни деструктора, ни пользовательских copy/move — иначе тип перестанет
-// быть trivially_copyable и сломается передача в "%s" varargs (см. шапку файла).
-// Буферы выделяются malloc и НЕ освобождаются (см. tmc_cstr_dup/cat/fmt).
+// Ни деструктора, ни пользовательских copy/move — иначе тип перестанет быть
+// trivially_copyable и сломается передача в "%s" varargs (см. шапку файла).
 class CString
 {
 public:
     CString() : m_p(tmc_cstr_empty()) {}
     CString(const char* s) : m_p(tmc_cstr_dup(s ? s : "")) {}
-    // copy/move/assign/деструктор — НЕ объявлены: компилятор генерирует
-    // тривиальные (поверхностное копирование указателя). Это и требуется.
 
-    // Присваивание C-строки: выделяем новый буфер (старый не трогаем — COW).
     CString& operator=(const char* s) { m_p = tmc_cstr_dup(s ? s : ""); return *this; }
 
-    // MFC CString::Format — printf-стиль. Новый буфер, прежний остаётся (утечка).
-    void Format(const char* fmt, ...)
+    // MFC CString::Format — printf-стиль. Новый буфер, прежний остаётся.
+    // Размер «I64» (%I64d, %I64u …) — расширение MSVC; glibc прочла бы «I» как
+    // свой флаг, а «64» — как ширину поля. Переводим в стандартное «ll».
+    void Format(const char* fmt0, ...)
     {
-        va_list ap;  va_start(ap, fmt);
+        std::string fixed;
+        const char* fmt = fmt0;
+        if (fmt0 && std::strstr(fmt0, "I64")) {
+            fixed = fmt0;
+            for (size_t i = 0; (i = fixed.find('%', i)) != std::string::npos; ) {
+                size_t j = i + 1;
+                while (j < fixed.size() && std::strchr("-+ #0123456789.*", fixed[j])) ++j;
+                if (fixed.compare(j, 3, "I64") == 0)
+                    fixed.replace(j, 3, "ll");
+                i = j + 1;
+            }
+            fmt = fixed.c_str();
+        }
+        va_list ap;  va_start(ap, fmt0);
         va_list ap2; va_copy(ap2, ap);
         int n = std::vsnprintf(nullptr, 0, fmt, ap);
         va_end(ap);
@@ -153,19 +240,95 @@ public:
     }
 
     int  GetLength() const { return static_cast<int>(std::strlen(m_p)); }
-    BOOL IsEmpty()   const { return (m_p[0] == '\0') ? TRUE : FALSE; }
+    BOOL IsEmpty()   const { return (m_p[0] == 0) ? TRUE : FALSE; }
     void Empty()           { m_p = tmc_cstr_empty(); }
 
-    // Неявная конверсия в C-строку — как MFC operator LPCTSTR.
     const char* GetString() const { return m_p; }
     operator const char*()  const { return m_p; }
+
+    // Разбор строк, как в MFC (нужны коду многочастотности и ДН, снимок 22.10).
+    // Позиции — в байтах; -1 — не найдено.
+    int Find(char ch, int start = 0) const
+    {
+        if (start < 0 || start > GetLength()) return -1;
+        const char* q = std::strchr(m_p + start, ch);
+        return q ? int(q - m_p) : -1;
+    }
+    int Find(const char* sub, int start = 0) const
+    {
+        if (start < 0 || start > GetLength()) return -1;
+        const char* q = std::strstr(m_p + start, sub ? sub : "");
+        return q ? int(q - m_p) : -1;
+    }
+    int ReverseFind(char ch) const
+    {
+        const char* q = std::strrchr(m_p, ch);
+        return q ? int(q - m_p) : -1;
+    }
+    int FindOneOf(const char* set) const
+    {
+        const size_t n = std::strcspn(m_p, set ? set : "");
+        return m_p[n] ? int(n) : -1;
+    }
+    CString Left(int n) const
+    {
+        const int len = GetLength();
+        if (n < 0) n = 0;
+        if (n > len) n = len;
+        return CString(std::string(m_p, size_t(n)).c_str());
+    }
+    CString Right(int n) const
+    {
+        const int len = GetLength();
+        if (n < 0) n = 0;
+        if (n > len) n = len;
+        return CString(m_p + (len - n));
+    }
+    // Как в MFC: Mid(first) — до конца строки; Mid(first, n) при n < 0 — пустая
+    // строка (идиома s.Mid(a, s.Find(x) - a), когда Find вернул −1), при n больше
+    // остатка — остаток. Сравнение без переполнения first + n (Т-24, Windows 5.0).
+    CString Mid(int first) const
+    {
+        const int len = GetLength();
+        if (first < 0) first = 0;
+        if (first > len) first = len;
+        return CString(m_p + first);
+    }
+    CString Mid(int first, int n) const
+    {
+        const int len = GetLength();
+        if (first < 0) first = 0;
+        if (first > len) first = len;
+        if (n < 0) n = 0;
+        if (n > len - first) n = len - first;
+        return CString(std::string(m_p + first, size_t(n)).c_str());
+    }
+    int Replace(const char* from, const char* to)
+    {
+        const size_t nf = from ? std::strlen(from) : 0;
+        if (nf == 0) return 0;
+        std::string s(m_p), t(to ? to : "");
+        int count = 0;
+        for (size_t pos = 0; (pos = s.find(from, pos)) != std::string::npos; pos += t.size(), ++count)
+            s.replace(pos, nf, t);
+        if (count) m_p = tmc_cstr_dup(s.c_str());
+        return count;
+    }
+    CString& TrimRight()
+    {
+        int n = GetLength();
+        while (n > 0 && (m_p[n - 1] == ' ' || m_p[n - 1] == '\t' || m_p[n - 1] == '\r' || m_p[n - 1] == '\n'))
+            --n;
+        if (n != GetLength()) m_p = tmc_cstr_dup(std::string(m_p, size_t(n)).c_str());
+        return *this;
+    }
 
     CString& operator+=(const char* s)    { m_p = tmc_cstr_cat(m_p, s ? s : ""); return *this; }
     CString& operator+=(const CString& o) { m_p = tmc_cstr_cat(m_p, o.m_p);      return *this; }
 
-    friend CString operator+(const CString& a, const char* b)   { CString r(a); r += b; return r; }
-    friend CString operator+(const char* a, const CString& b)   { CString r(a); r += b; return r; }
-    friend CString operator+(const CString& a, const CString& b){ CString r(a); r += b; return r; }
+    friend CString operator+(const CString& a, const char* b)    { CString r(a); r += b; return r; }
+    friend CString operator+(const char* a, const CString& b)    { CString r(a); r += b; return r; }
+    friend CString operator+(const CString& a, const CString& b) { CString r(a); r += b; return r; }
 
     bool operator==(const CString& o) const { return std::strcmp(m_p, o.m_p) == 0; }
     bool operator!=(const CString& o) const { return std::strcmp(m_p, o.m_p) != 0; }
@@ -173,10 +336,9 @@ public:
     bool operator!=(const char* s) const { return std::strcmp(m_p, s ? s : "") != 0; }
 
 private:
-    // --- Управление буферами (без free: тривиальная копируемость это требует) ---
     static char* tmc_cstr_empty()
     {
-        static char e[1] = { '\0' };   // общий пустой буфер; никогда не пишется на месте
+        static char e[1] = { 0 };   // общий пустой буфер, на месте не пишется
         return e;
     }
     static char* tmc_cstr_dup(const char* s)
@@ -191,15 +353,18 @@ private:
         size_t na = std::strlen(a), nb = std::strlen(b);
         char* p = static_cast<char*>(std::malloc(na + nb + 1));
         std::memcpy(p, a, na);
-        std::memcpy(p + na, b, nb + 1);   // +1: копируем и '\0'
+        std::memcpy(p + na, b, nb + 1);   // +1: копируем и завершающий ноль
         return p;
     }
 
     char* m_p;   // единственный член -> объект ABI-эквивалентен указателю
 };
 
-// Гарантия инварианта, от которого зависит передача CString в "%s" varargs.
 static_assert(std::is_trivially_copyable<CString>::value,
               "CString must be trivially copyable (varargs %s relies on it)");
+
+// Win32 API, который понадобился коду редакции 5.0 (замер времени, GPU, память,
+// полный путь), — на POSIX. Под Windows пусто.
+#include "tmc_win32_posix.h"
 
 #endif // !_WIN32

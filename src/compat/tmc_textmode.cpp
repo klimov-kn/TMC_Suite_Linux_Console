@@ -1,82 +1,192 @@
-// tmc_textmode.cpp — репликация текстового режима CRT Windows для Linux.
+// tmc_textmode.cpp — текстовый режим файлов и поиск имени, как в Windows.
 //
-// ЗАЧЕМ. Исходные файлы TMC (.TPL и текстовые результаты) имеют CRLF-окончания
-// (Windows). На Windows fopen(...,"r"/"w") открывает поток в ТЕКСТОВОМ режиме:
-// при чтении CRLF -> LF (символ '\r' исчезает), при записи LF -> CRLF. На Linux
-// текстовый режим == бинарный: '\r' НЕ срезается и НЕ добавляется. Из-за этого
-// '\r' от CRLF доживал до парсера выражений (например, "(2.00)\r"), ломая разбор
-// ("abnormal function"), а вывод отличался от Windows на байты окончаний строк.
+// ЗАЧЕМ. Файлы заданий и текстовые результаты TMC записаны с окончаниями строк
+// CRLF. На Windows `fopen(..., "r")` открывает поток в ТЕКСТОВОМ режиме: при
+// чтении пара CRLF превращается в один перевод строки, при записи наоборот.
+// На Linux текстовый режим ничем не отличается от двоичного, поэтому символ
+// возврата каретки доживает до разбора: пустая строка перестаёт быть пустой,
+// число «20.0344\r» читается неправильно, а записанный файл отличается от
+// windows-версии на байты окончаний строк — то есть перестаёт быть совместимым.
 //
-// РЕШЕНИЕ. Перехватываем fopen компоновочным флагом -Wl,--wrap=fopen и для
-// ТЕКСТОВЫХ режимов (без 'b') возвращаем поток fopencookie, который:
-//   * при чтении выбрасывает все '\r'  (CRLF/CR -> LF);
-//   * при записи перед каждым '\n' вставляет '\r'  (LF -> CRLF).
-// БИНАРНЫЕ режимы ('b': "rb"/"wb"/"r+b"/"w+b") идут в настоящий fopen без
-// изменений — числовые форматы остаются байт-в-байт совместимы с Windows.
+// Вторая задача — имя файла. Файловая система Windows не различает регистр:
+// задание подключает `#include horns.h`, а на диске лежит `HORNS.H`. На ext4 это
+// разные имена, и файл, созданный на Windows, не открывается.
 //
-// Это слой совместимости (НЕ математика): меняется только трактовка окончаний
-// строк на границе ввода-вывода, ровно как это делает CRT Windows.
+// РЕШЕНИЕ. Перехватываем fopen флагом компоновщика -Wl,--wrap=fopen. Для
+// ТЕКСТОВЫХ режимов (без 'b') возвращаем поток, который при чтении убирает
+// возврат каретки, а при записи ставит его перед каждым переводом строки.
+// ДВОИЧНЫЕ режимы идут в настоящий fopen без изменений — числовые форматы
+// (S-матрицы) остаются байт в байт теми же. Имя в обоих случаях разрешается
+// без учёта регистра.
 //
-// Активно только вне Windows. На Windows используется родной текстовый режим CRT.
+// ПРОИЗВОДИТЕЛЬНОСТЬ. Перевод строк делается БЛОКАМИ, а не посимвольно: счётные
+// ядра пишут выходной файл на каждом такте, и файлы бывают под мегабайт.
+// Посимвольная обработка (fgetc/fputc на каждый байт) замедляла счёт в десятки
+// раз по сравнению с Windows-версией.
+//
+// Это слой совместимости, а не вычисления: меняется только трактовка окончаний
+// строк на границе ввода-вывода — ровно то, что делает библиотека C на Windows.
 
 #ifndef _WIN32
 
 #define _GNU_SOURCE
 #include <cstdio>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
+
+#include <dirent.h>
+#include <string>
+#include <strings.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 extern "C" FILE* __real_fopen(const char* path, const char* mode);
 
 namespace {
 
-struct TextCookie {
-    FILE* raw;   // подлежащий поток, открытый в бинарном режиме
-};
-
-ssize_t tm_read(void* c, char* buf, size_t size)
+// --- Поиск файла без учёта регистра -------------------------------------------
+//
+// Ищем только по последнему элементу пути и только когда точного имени нет.
+// Если совпадений несколько, ничего не выбираем — пусть лучше будет честная
+// ошибка, чем открытие не того файла.
+std::string resolveIgnoringCase(const char* path)
 {
-    TextCookie* tc = static_cast<TextCookie*>(c);
-    size_t out = 0;
-    while (out < size) {
-        int ch = std::fgetc(tc->raw);
-        if (ch == EOF) break;
-        if (ch == '\r') continue;        // текстовое чтение: срезаем CR
-        buf[out++] = static_cast<char>(ch);
+    if (!path || !*path)
+        return std::string();
+
+    struct stat st;
+    if (::stat(path, &st) == 0)
+        return path;                       // точное имя есть — ничего не ищем
+
+    std::string full(path);
+    const std::string::size_type slash = full.find_last_of('/');
+    const std::string dir  = (slash == std::string::npos) ? std::string(".")
+                                                          : full.substr(0, slash);
+    const std::string name = (slash == std::string::npos) ? full
+                                                          : full.substr(slash + 1);
+    if (name.empty())
+        return full;
+
+    DIR* d = ::opendir(dir.c_str());
+    if (!d)
+        return full;
+
+    std::string found;
+    int matches = 0;
+    while (struct dirent* e = ::readdir(d)) {
+        if (::strcasecmp(e->d_name, name.c_str()) == 0) {
+            ++matches;
+            found = e->d_name;
+        }
     }
-    if (out == 0 && std::ferror(tc->raw)) return -1;
-    return static_cast<ssize_t>(out);
+    ::closedir(d);
+
+    if (matches != 1)
+        return full;                       // ноль или несколько — не гадаем
+
+    return (slash == std::string::npos) ? found : dir + "/" + found;
 }
 
-ssize_t tm_write(void* c, const char* buf, size_t size)
+// --- Поток с переводом окончаний строк ----------------------------------------
+
+struct TextStream
 {
-    TextCookie* tc = static_cast<TextCookie*>(c);
-    for (size_t i = 0; i < size; ++i) {
-        if (buf[i] == '\n') {            // текстовая запись: LF -> CRLF
-            if (std::fputc('\r', tc->raw) == EOF) return -1;
+    FILE* raw;          // настоящий поток, открытый в двоичном режиме
+    char* buffer;       // рабочий буфер для блочного обмена
+    size_t bufferSize;
+};
+
+const size_t kBufferSize = 64 * 1024;
+
+// Чтение: берём блок и выбрасываем из него возвраты каретки. Если после чистки
+// не осталось ни байта (блок был из одних CR), читаем следующий блок.
+ssize_t textRead(void* cookie, char* buf, size_t size)
+{
+    TextStream* ts = static_cast<TextStream*>(cookie);
+    if (size == 0)
+        return 0;
+
+    for (;;) {
+        const size_t want = size < ts->bufferSize ? size : ts->bufferSize;
+        const size_t got = std::fread(ts->buffer, 1, want, ts->raw);
+        if (got == 0)
+            return std::ferror(ts->raw) ? -1 : 0;
+
+        // Быстрый путь: возвратов каретки в блоке нет — отдаём как есть.
+        const char* cr = static_cast<const char*>(std::memchr(ts->buffer, '\r', got));
+        if (!cr) {
+            std::memcpy(buf, ts->buffer, got);
+            return static_cast<ssize_t>(got);
         }
-        if (std::fputc(static_cast<unsigned char>(buf[i]), tc->raw) == EOF) return -1;
+
+        size_t out = 0;
+        const char* src = ts->buffer;
+        const char* end = ts->buffer + got;
+        while (src < end) {
+            const char* next = static_cast<const char*>(
+                std::memchr(src, '\r', size_t(end - src)));
+            if (!next) {
+                const size_t n = size_t(end - src);
+                std::memcpy(buf + out, src, n);
+                out += n;
+                break;
+            }
+            const size_t n = size_t(next - src);
+            std::memcpy(buf + out, src, n);
+            out += n;
+            src = next + 1;                 // сам возврат каретки пропускаем
+        }
+        if (out > 0)
+            return static_cast<ssize_t>(out);
+        // Блок состоял из одних возвратов каретки — читаем следующий.
+    }
+}
+
+// Запись: перед каждым переводом строки добавляем возврат каретки. Пишем
+// кусками между переводами строк, а не по байту.
+ssize_t textWrite(void* cookie, const char* buf, size_t size)
+{
+    TextStream* ts = static_cast<TextStream*>(cookie);
+    size_t done = 0;
+
+    while (done < size) {
+        const char* start = buf + done;
+        const size_t left = size - done;
+        const char* nl = static_cast<const char*>(std::memchr(start, '\n', left));
+        const size_t chunk = nl ? size_t(nl - start) : left;
+
+        if (chunk && std::fwrite(start, 1, chunk, ts->raw) != chunk)
+            return -1;
+        done += chunk;
+
+        if (nl) {
+            if (std::fwrite("\r\n", 1, 2, ts->raw) != 2)
+                return -1;
+            done += 1;                      // сам перевод строки уже записан
+        }
     }
     return static_cast<ssize_t>(size);
 }
 
-// Делегируем позиционирование подлежащему (бинарному) потоку. Для файлов без CR
-// смещения совпадают с логическими; CRLF-файлы парсер читает строго
-// последовательно (PREPR не использует fseek/ftell), поэтому несоответствие
-// смещений на число '\r' значения не имеет.
-int tm_seek(void* c, off64_t* offset, int whence)
+// Позиционирование отдаём настоящему потоку. Смещения в файле с CRLF отличаются
+// от «логических» на число возвратов каретки, но текстовые файлы TMC читаются
+// строго последовательно (fgets/fscanf), а там, где нужен точный отсчёт байтов
+// (S-матрицы), файл открывается в двоичном режиме и сюда не попадает.
+int textSeek(void* cookie, off64_t* offset, int whence)
 {
-    TextCookie* tc = static_cast<TextCookie*>(c);
-    if (fseeko(tc->raw, static_cast<off_t>(*offset), whence) != 0) return -1;
-    *offset = static_cast<off64_t>(ftello(tc->raw));
+    TextStream* ts = static_cast<TextStream*>(cookie);
+    if (fseeko(ts->raw, static_cast<off_t>(*offset), whence) != 0)
+        return -1;
+    *offset = static_cast<off64_t>(ftello(ts->raw));
     return 0;
 }
 
-int tm_close(void* c)
+int textClose(void* cookie)
 {
-    TextCookie* tc = static_cast<TextCookie*>(c);
-    int r = std::fclose(tc->raw);
-    std::free(tc);
+    TextStream* ts = static_cast<TextStream*>(cookie);
+    int r = std::fclose(ts->raw);
+    std::free(ts->buffer);
+    std::free(ts);
     return r;
 }
 
@@ -84,26 +194,54 @@ int tm_close(void* c)
 
 extern "C" FILE* __wrap_fopen(const char* path, const char* mode)
 {
-    if (mode == nullptr) return __real_fopen(path, mode);
+    if (mode == 0)
+        return __real_fopen(path, mode);
 
-    // Бинарный режим — без трансляции (числовые форматы байт-в-байт).
-    if (std::strchr(mode, 'b')) return __real_fopen(path, mode);
+    // Имя разрешаем так же, как это делает Windows: без учёта регистра. Это
+    // касается и записи: если файл с таким именем уже есть (пусть и в другом
+    // регистре), Windows пишет именно в него, а не заводит второй.
+    const std::string resolved = resolveIgnoringCase(path);
+    const char* realPath = resolved.empty() ? path : resolved.c_str();
 
-    // Текстовый режим: открываем подлежащий поток в бинарном эквиваленте
-    // (тот же режим + 'b'), трансляцию делает cookie.
-    char rawmode[8];
-    std::snprintf(rawmode, sizeof rawmode, "%sb", mode);
+    // Двоичный режим — без перевода строк.
+    if (std::strchr(mode, 'b'))
+        return __real_fopen(realPath, mode);
 
-    FILE* raw = __real_fopen(path, rawmode);
-    if (raw == nullptr) return nullptr;
+    // Текстовый режим: настоящий поток открываем двоичным, перевод строк берёт
+    // на себя обёртка.
+    char rawMode[8];
+    std::snprintf(rawMode, sizeof(rawMode), "%sb", mode);
 
-    TextCookie* tc = static_cast<TextCookie*>(std::malloc(sizeof(TextCookie)));
-    if (tc == nullptr) { std::fclose(raw); return nullptr; }
-    tc->raw = raw;
+    FILE* raw = __real_fopen(realPath, rawMode);
+    if (!raw)
+        return 0;
 
-    cookie_io_functions_t io = { tm_read, tm_write, tm_seek, tm_close };
-    FILE* f = fopencookie(tc, mode, io);
-    if (f == nullptr) { std::fclose(raw); std::free(tc); return nullptr; }
+    TextStream* ts = static_cast<TextStream*>(std::malloc(sizeof(TextStream)));
+    if (!ts) {
+        std::fclose(raw);
+        return 0;
+    }
+    ts->raw = raw;
+    ts->bufferSize = kBufferSize;
+    ts->buffer = static_cast<char*>(std::malloc(ts->bufferSize));
+    if (!ts->buffer) {
+        std::fclose(raw);
+        std::free(ts);
+        return 0;
+    }
+
+    cookie_io_functions_t io = { textRead, textWrite, textSeek, textClose };
+    FILE* f = fopencookie(ts, mode, io);
+    if (!f) {
+        std::fclose(raw);
+        std::free(ts->buffer);
+        std::free(ts);
+        return 0;
+    }
+
+    // Свой буфер и у внешнего потока: иначе каждый fputs из кода превращается
+    // в отдельный вызов обёртки.
+    std::setvbuf(f, 0, _IOFBF, kBufferSize);
     return f;
 }
 

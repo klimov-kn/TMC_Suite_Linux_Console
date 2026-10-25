@@ -1,8 +1,8 @@
 // tmc_mfc_gui.h — скелет GUI-классов MFC для КОНСОЛЬНОЙ сборки ядра под Linux.
 //
 // Зачем нужен (см. ISSUES.md R3): счётные модули ядра PlanarRT_H
-// (TmcRTHRectNode.cpp, TmcRTHNodeDiel.cpp) транзитивно включают GUI-заголовки
-// (PlanRT_H.h -> CWinApp; Pl_iofor.h -> MainFrm.h/PlanRT_HDoc.h/PlanRT_HView.h
+// (tmcrthrectnode.cpp, tmcrthnodediel.cpp) транзитивно включают GUI-заголовки
+// (planrt_h.h -> CWinApp; pl_iofor.h -> mainfrm.h/planrt_hdoc.h/planrt_hview.h
 // -> CMDIFrameWnd/CDocument/CScrollView/CStatusBar/CDialog/...). Сами GUI-.cpp
 // в Linux-сборку НЕ входят, но их ЗАГОЛОВКИ должны хотя бы парситься компилятором.
 // Здесь — пустые «болванки» базовых MFC-классов и нейтральные макросы, достаточные
@@ -10,29 +10,32 @@
 // вызывается (точка входа — консольный main, который работает с CTmcRTHRectNode
 // напрямую, без Doc/View).
 //
+// Строки, win-типы и Win32 API кода редакции 5.0 (часы, память, потоки EPSFAST2,
+// OpenCL, признак ARCHIVE) — в tmc_mfc.h и tmc_win32_posix.h, общих с
+// Linux-версией с интерфейсом. Здесь только то, что нужно консольной сборке.
+//
 // ВАЖНО:
 //  * Это НЕ математика и НЕ формат файлов — только перенос/нейтрализация MFC-обвязки.
-//  * Активен только вне Windows: на самой Windows (этап GUI 2027) используется
-//    настоящий MFC.
-//  * Расширяется по мере появления новых требований при сборке ядра.
+//  * Активен только вне Windows.
 
 #pragma once
 
 #ifndef _WIN32
 
-#include "tmc_mfc.h"   // базовые win-типы + CString
+#include "tmc_mfc.h"   // базовые win-типы + CString + Win32 API редакции 5.0
 
-// PlanRT_H.h проверяет этот guard ("include 'stdafx.h' before ..."): объявляем,
+// planrt_h.h проверяет этот guard ("include 'stdafx.h' before ..."): объявляем,
 // что «MFC-ядро уже подключено» — на Linux это наш шим.
 #ifndef __AFXWIN_H__
 #define __AFXWIN_H__
 #endif
 
 // --- Сообщения/типы окон (нужны только как типы-носители) -------------------
-typedef unsigned int  WPARAM;
-typedef long          LPARAM;
-typedef long          LRESULT;
 typedef unsigned long COLORREF;
+typedef void*         HANDLE;
+#ifndef INVALID_HANDLE_VALUE
+#define INVALID_HANDLE_VALUE ((HANDLE)-1)
+#endif
 
 #ifndef WM_CLOSE
 #define WM_CLOSE 0x0010
@@ -43,10 +46,10 @@ typedef CREATESTRUCT* LPCREATESTRUCT;
 
 struct PROCESS_INFORMATION
 {
-    void* hProcess;
-    void* hThread;
-    DWORD dwProcessId;
-    DWORD dwThreadId;
+    HANDLE hProcess;
+    HANDLE hThread;
+    DWORD  dwProcessId;
+    DWORD  dwThreadId;
 };
 
 // --- CRT/win32-периферия, которую MSVC давал ядру транзитивно ----------------
@@ -56,30 +59,42 @@ struct PROCESS_INFORMATION
 // это лишь подсказка аллокатору освободить память, на результат счёта не влияет.
 inline int _heapmin() { return 0; }
 
-// GetFileAttributes — в ядре используется ТОЛЬКО в IsFieldFileRead() для
-// GUI-синхронизации с внешним вьюером поля (расчёт ждал, пока вьюер прочитает
-// очередной кадр поля, отслеживая ARCHIVE-бит файла). В headless-CLI вьюера нет,
-// поэтому ожидание должно отсутствовать: возвращаем «существует -> ARCHIVE»,
-// «нет файла -> INVALID», так что IsFieldFileRead() всегда FALSE (цикл ожидания
-// не выполняется). На формат/содержимое выходных файлов не влияет.
-#include <sys/stat.h>
-#ifndef FILE_ATTRIBUTE_ARCHIVE
-#define FILE_ATTRIBUTE_ARCHIVE 0x20
-#endif
-#ifndef INVALID_FILE_ATTRIBUTES
-#define INVALID_FILE_ATTRIBUTES 0xFFFFFFFF
-#endif
-inline DWORD GetFileAttributes(const char* path)
+// GetTickCount — миллисекунды монотонных часов. Код 5.0 (Т-9, EPSFAST) выводит
+// по ним ход заполнения eps раз в 250 мс и ограничивает ожидание по времени.
+#include <ctime>
+inline DWORD GetTickCount()
 {
-    struct stat st;
-    if (!path) return INVALID_FILE_ATTRIBUTES;
-    return (stat(path, &st) == 0) ? (DWORD)FILE_ATTRIBUTE_ARCHIVE
-                                  : (DWORD)INVALID_FILE_ATTRIBUTES;
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return DWORD((unsigned long long)t.tv_sec * 1000ull + (unsigned long long)t.tv_nsec / 1000000ull);
 }
+
+// --- Исключения MFC ------------------------------------------------------------
+// Код расчёта 5.0 (А-37) ловит catch( CException *e ). Как в Linux-версии с
+// интерфейсом (tmc_mfc_doc.h); нехватка памяти в консоли приходит обычным
+// std::bad_alloc, который код ловит отдельной веткой.
+class CException
+{
+public:
+    virtual ~CException() {}
+    virtual BOOL GetErrorMessage(char* buf, UINT max, UINT* help = 0) const
+    {
+        if (help) *help = 0;
+        if (buf && max) { std::strncpy(buf, what(), max - 1); buf[max - 1] = 0; }
+        return TRUE;
+    }
+    virtual const char* what() const { return "exception"; }
+    void Delete() { delete this; }
+};
+class CMemoryException : public CException
+{
+public:
+    const char* what() const override { return "Not enough memory"; }
+};
 
 // --- Нейтрализация MFC-макросов ClassWizard ---------------------------------
 // На Linux карты сообщений/динамическое создание окон не нужны: раскрываем в
-// пустоту, чтобы тела заголовков и .cpp компилировались без изменений исходников.
+// пустоту, чтобы тела заголовков компилировались без изменений исходников.
 #define afx_msg
 #define DECLARE_MESSAGE_MAP()
 #define BEGIN_MESSAGE_MAP(theClass, baseClass)
@@ -124,8 +139,7 @@ public:
     CWnd* m_pMainWnd = nullptr;
     CWnd() {}
     virtual ~CWnd() {}
-    // На Linux окон нет: PostMessage — пустышка (вызов из PutStepEndSound
-    // достижим только при IsAutoRun()==TRUE, а в CLI он всегда FALSE).
+    // Окон нет: PostMessage — пустышка.
     BOOL PostMessage(UINT /*msg*/, WPARAM = 0, LPARAM = 0) { return TRUE; }
     BOOL RedrawWindow() { return TRUE; }
 };
