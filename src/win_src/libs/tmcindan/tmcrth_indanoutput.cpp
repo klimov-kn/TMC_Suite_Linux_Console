@@ -10,11 +10,6 @@
 #include <proc_s.h>		// D-1: save_S_matrix_element
 #include <expr.h>
 
-//#ifdef _DEBUG
-//#define new DEBUG_NEW
-//#undef THIS_FILE
-//static char THIS_FILE[] = __FILE__;
-//#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // CTmcRTH_IndanOutput
@@ -66,14 +61,8 @@ CTmcRTH_IndanOutput::~CTmcRTH_IndanOutput()
 void CTmcRTH_IndanOutput::DeleteData( void )
 {
 //{	CString csBuf1;
-//	csBuf1.Format("Trace3");
-//	AfxMessageBox(csBuf1);		
-//};
 	cError.Clear();
 //{	CString csBuf1;
-//	csBuf1.Format("Trace4");
-//	AfxMessageBox(csBuf1);		
-//};
 	cFieldDistr.DeleteData();
 	csFileName.Format("");
 	csFileNameField.Format("");
@@ -410,19 +399,7 @@ void CTmcRTH_IndanOutput::OnOffFieldOutput()
 	return;
 }
 
-void CTmcRTH_IndanOutput::OnOffFieldOutput1()
-{
-	bOutField1 = !bOutField1;
-	PutSinchronizFlag( bOutTopology, bOutField1, bOutFieldSinchronization);
-	return;
-}
 
-void CTmcRTH_IndanOutput::OnOffFieldOutputU()
-{
-	bOutFieldU = !bOutFieldU;
-	PutSinchronizFlag( bOutTopology, bOutFieldU, bOutFieldSinchronization);
-	return;
-}
 
 void CTmcRTH_IndanOutput::OnOffSinchronizationFieldOutput()
 {
@@ -595,22 +572,15 @@ void CTmcRTH_IndanOutput::PutSmatrix()
 	};
 
 	CTmcTtoS cTtoS;
-//	{
 //		CString csBuf1;
 //		csBuf1.Format("T-FileName = %s; S-FileName = %s; Tmin = %lg; Tmax = %lg; Frequence = %lg;", csFileName, csFileNameSMatrix, dTmin, dTmax, dFreq);
-//		AfxMessageBox(csBuf1);
-//	};
 	cTtoS.TtoS( csFileName, csFileNameSMatrix, dTmin, dTmax, dFreq);
 	if( cTtoS.IsError() )	// A-21: ne teryat oshibku
 	{
 		csSMatrixError.Format("S-matrix: %s", (LPCTSTR)cTtoS.GetErrorMessage() );
 	};
-//	if( cTtoS.IsError )
-//	{
 //		CString csBuf1;
 //		csBuf1.Format("Error: %s; T-FileName = %s; S-FileName = %s; Tmin = %lg; Tmax = %lg; Frequence = %lg;", cTtoS.GetErrorMessage(), csFileName, csFileNameSMatrix, dTmin, dTmax, dFreq);
-//		AfxMessageBox(csBuf1);
-//	}
 	return;
 }
 
@@ -759,10 +729,6 @@ void CTmcRTH_IndanOutput::ReadFileDistr( CString &csCh, char *ch )
 }
 
 
-BOOL CTmcRTH_IndanOutput::bIsFieldDistribution()
-{
-	return cFieldDistr.bIsFieldDistr();
-}
 
 CFieldIntegrated& CTmcRTH_IndanOutput::GetFieldIntegrated()
 {
