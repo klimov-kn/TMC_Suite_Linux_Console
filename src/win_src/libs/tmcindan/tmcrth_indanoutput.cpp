@@ -2,10 +2,12 @@
 //
 
 #include "stdafx.h"
-#include <tmcrth_indanoutput.h>
-#include <tmcrth_indan.h>
-#include <tmcttos.h>
-#include <tmcwideband.h>
+#include <TmcRTH_IndanOutput.h>
+#include <TmcRTH_Indan.h>
+#include <TmcTtoS.h>
+#include <TmcWideband.h>
+#include <tmcgrviw.h>	// D-1: types of the input blocks
+#include <proc_s.h>		// D-1: save_S_matrix_element
 #include <expr.h>
 
 //#ifdef _DEBUG
@@ -184,7 +186,8 @@ void CTmcRTH_IndanOutput::ReadFileName( CString &csCh )
 	
 	for( i = (int)(strlen(csFileName)); i >= 0; i-- )
 	{
-		if( csFileName[i] == '.' ) 
+		if( ( csFileName[i] == '\\' )||( csFileName[i] == '/' ) ) break;	// N-22: a dot in a folder name is allowed
+		if( csFileName[i] == '.' )
 		{
 			csBuf.Format("Unresolved simbol '.' in filename {%s}", csCh);
 			cError.PutErrorMessage(csBuf);
@@ -390,6 +393,7 @@ BOOL CTmcRTH_IndanOutput::IsFullPath( void )
 	int i, n;
 
 	n = csFileName.GetLength();
+	if( ( n > 0 )&&( ( csFileName[0] == '\\' )||( csFileName[0] == '/' ) ) ) return TRUE;	// N-22: \\server\share, \folder
 
 	for( i = 0; i < n; i++ )
 	{
@@ -477,6 +481,12 @@ void CTmcRTH_IndanOutput::ReadSmatrix( CString &csCh )
 	if( n == 0 ) csFileNameSMatrix.Format("%s.s", szBuf);
 	
 	i+= Search_1Param( csBuf, szBuf1+i );
+	if( cError.IsError() )	// S-10: a missing ';' is not read as the value before
+	{
+		csBuf.Format("Missing separator ';' in {%s}", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
 	strcpy( szBuf, csBuf );
 	expr_del_Blanks2( szBuf );
 	if( i1nte_atof_1( szBuf, &r ) != 0 )
@@ -486,8 +496,34 @@ void CTmcRTH_IndanOutput::ReadSmatrix( CString &csCh )
 		return;
 	};
 	dFreq = r*dFreqUnit;
+	if( !( dFreq > 0.0 ) )	// S-10
+	{
+		csBuf.Format("In{%s} the frequency must be > 0", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
+
+	// B-22: "SMATRIX name; F;" without Tmin; Tmax - the full window 0...Tmax of the task (the multi-frequency run).
+	// dTmax < 0 marks it; the window is set when the step is read (CTmcRTH_Indan::ReadOutputSection).
+	{
+		const char *p = szBuf1 + i;
+		while( ( *p == ' ' )||( *p == '\t' )||( *p == '\r' )||( *p == '\n' ) ) p++;
+		if( *p == '\0' )
+		{
+			dTmin = 0.0;
+			dTmax = -1.0;
+			bOutSMatrix = TRUE;
+			return;
+		};
+	};
 	
 	i+= Search_1Param( csBuf, szBuf1+i );
+	if( cError.IsError() )	// S-10: a missing ';' is not read as the value before
+	{
+		csBuf.Format("Missing separator ';' in {%s}", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
 	strcpy( szBuf, csBuf );
 	expr_del_Blanks2( szBuf );
 	if( i1nte_atof_1( szBuf, &r ) != 0 )
@@ -499,6 +535,12 @@ void CTmcRTH_IndanOutput::ReadSmatrix( CString &csCh )
 	dTmin = r*dTimeUnit;
 	
 	i+= Search_1Param( csBuf, szBuf1+i );
+	if( cError.IsError() )	// S-10: a missing ';' is not read as the value before
+	{
+		csBuf.Format("Missing separator ';' in {%s}", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
 	strcpy( szBuf, csBuf );
 	expr_del_Blanks2( szBuf );
 	if( i1nte_atof_1( szBuf, &r ) != 0 )
@@ -508,7 +550,13 @@ void CTmcRTH_IndanOutput::ReadSmatrix( CString &csCh )
 		return;
 	};
 	dTmax = r*dTimeUnit;
-	
+	if( !( dTmax > dTmin ) )	// S-10
+	{
+		csBuf.Format("In{%s} Tmin must be less than Tmax", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
+
 	bOutSMatrix = TRUE;
 	return;
 }
@@ -523,6 +571,7 @@ void CTmcRTH_IndanOutput::SetFreqAndTimeUnit(double dFr, double dTim)
 void CTmcRTH_IndanOutput::PutSmatrix()
 {
 	csSMatrixError.Format("");	// A-21
+	csSMatrixWarning.Format("");	// B-22
 	if( !bOutSMatrix ) return;
 
 //  A run excited by a multi-frequency incident wave carries the whole sweep.
@@ -534,6 +583,7 @@ void CTmcRTH_IndanOutput::PutSmatrix()
 	{
 		CTmcWideband cWide;
 		cWide.Process( csFileName, csFileNameSMatrix, dTmin, dTmax );
+		csSMatrixWarning = cWide.GetWarningMessage();	// B-22
 		if( cWide.IsError() )
 		{
 			CString csBuf1;
@@ -562,6 +612,41 @@ void CTmcRTH_IndanOutput::PutSmatrix()
 //		AfxMessageBox(csBuf1);
 //	}
 	return;
+}
+
+// D-1 (answer of the author 26.10.2026): a step (a point of the sweep) calculated with an error is written into
+// the .s as zeros - the whole S-matrix at the frequency of SMATRIX, all columns - so the error is seen at once.
+// pcBl - the blocks of the step: the inputs give the number of ports. A port fed from a signal file ([name]) is
+// the multi-frequency run: it puts zeros at its bad frequencies itself (CTmcWideband), nothing is written here.
+// Returns 1 - zeros are written, 0 - nothing to write, -1 - the .s can not be written.
+int CTmcRTH_IndanOutput::PutSmatrixZero( CTmcRTH_BlockList *pcBl )
+{
+	if( !bOutSMatrix ) return 0;
+	if( !( dFreq > 0.0 ) ) return 0;
+	if( csFileNameSMatrix.GetLength() == 0 ) return 0;
+
+	int i, nPort = 0, nRet = 1;
+	for( ; pcBl != NULL; pcBl = pcBl->GetNext() )
+	{
+		int nT = pcBl->GetnType();
+		if( ( nT < CTMCRTH_BLCKNTYPE_INPXLEFT )||( nT > CTMCRTH_BLCKNTYPE_INPYBOT ) ) continue;
+		CString csV = pcBl->GetcsVx();
+		if( ( csV.GetLength() > 0 )&&( ((LPCSTR)csV)[0] == '[' ) ) return 0;
+		nPort++;
+	};
+	if( nPort < 1 ) return 0;
+
+	_complex *pcZ = new _complex[nPort];
+	for( i = 0; i < nPort; i++ ) { pcZ[i].x = 0.0; pcZ[i].y = 0.0; };
+	char szBuf[CTMCRTH_INDANSBUF];
+	strncpy( szBuf, (LPCSTR)csFileNameSMatrix, CTMCRTH_INDANSBUF - 1 );
+	szBuf[CTMCRTH_INDANSBUF - 1] = '\0';
+	for( i = 1; i <= nPort; i++ )
+	{
+		if( save_S_matrix_element( i, szBuf, pcZ, dFreq, nPort ) != 0 ) { nRet = -1; break; };
+	};
+	delete []pcZ;
+	return nRet;
 }
 
 void CTmcRTH_IndanOutput::ReadFileDistr( CString &csCh, char *ch )
@@ -601,6 +686,12 @@ void CTmcRTH_IndanOutput::ReadFileDistr( CString &csCh, char *ch )
 	cFieldDistr.SetFile(szBuf);
 
 	i+= Search_1Param( csBuf, szBuf1+i );
+	if( cError.IsError() )	// S-10: a missing ';' is not read as the value before
+	{
+		csBuf.Format("Missing separator ';' in {%s}", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
 	strcpy( szBuf, csBuf );
 	expr_del_Blanks2( szBuf );
 	if( i1nte_atof_1( szBuf, &r ) != 0 )
@@ -610,9 +701,21 @@ void CTmcRTH_IndanOutput::ReadFileDistr( CString &csCh, char *ch )
 		return;
 	};
 	rFreq = r*dFreqUnit;
+	if( !( rFreq > 0.0 ) )	// S-10: the window of the pattern is a number of periods of this frequency
+	{
+		csBuf.Format("In{%s} the frequency must be > 0", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
 	cFieldDistr.SetFreq( rFreq );
  
 	i+= Search_1Param( csBuf, szBuf1+i );
+	if( cError.IsError() )	// S-10: a missing ';' is not read as the value before
+	{
+		csBuf.Format("Missing separator ';' in {%s}", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
 	strcpy( szBuf, csBuf );
 	expr_del_Blanks2( szBuf );
 	if( i1nte_atof_1( szBuf, &r ) != 0 )
@@ -625,6 +728,12 @@ void CTmcRTH_IndanOutput::ReadFileDistr( CString &csCh, char *ch )
 	cFieldDistr.SetTmin( rTmin );
 	
 	i+= Search_1Param( csBuf, szBuf1+i );
+	if( cError.IsError() )	// S-10: a missing ';' is not read as the value before
+	{
+		csBuf.Format("Missing separator ';' in {%s}", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
 	strcpy( szBuf, csBuf );
 	expr_del_Blanks2( szBuf );
 	if( i1nte_atof_1( szBuf, &r ) != 0 )
@@ -634,8 +743,16 @@ void CTmcRTH_IndanOutput::ReadFileDistr( CString &csCh, char *ch )
 		return;
 	};
 	rTmax = r*dTimeUnit;
+	if( !( rTmax > rTmin ) )	// S-10
+	{
+		csBuf.Format("In{%s} Tmin must be less than Tmax", (LPCSTR)csCh);
+		cError.PutErrorMessage(csBuf);
+		return;
+	};
 
-	rTmax = rTmin + ((int)((rTmax - rTmin)*rFreq+1))/rFreq;
+	// B-13: a whole number of periods, rounded up with 0.9999 (old: +1 - one more period when the window
+	// already was a whole number of periods): rTmax = rTmin + ((int)((rTmax - rTmin)*rFreq+1))/rFreq;
+	rTmax = rTmin + ((int)((rTmax - rTmin)*rFreq+0.9999))/rFreq;
 	cFieldDistr.SetTmax( rTmax );
 	
 	return;
