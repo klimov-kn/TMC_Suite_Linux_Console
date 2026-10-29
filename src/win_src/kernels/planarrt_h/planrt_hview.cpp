@@ -482,6 +482,7 @@ void CPlanRT_HView::OnRunAll()
 	if( ( AfxBeginThread( RunAllGlobal, (void *)(pDoc), THREAD_PRIORITY_NORMAL ) ) == NULL )
 	{
 		PutTrace( "Can't open thread for read data" );
+		bIsReadData = FALSE;	// J-2: as in OnRunStep (old: not reset - every next Run was ignored)
 		return;
 	};
 
