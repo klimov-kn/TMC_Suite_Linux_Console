@@ -11,6 +11,14 @@
 **
 */
 
+/// @file frqdata.cpp
+/// @brief Глобальная таблица частот библиотеки sfile95 и функции доступа к ней.
+///
+/// Часть модуля «Библиотека sfile95». Одна статическая таблица на процесс:
+/// не больше `FREQ_MAX_NUM` точек, частоты хранятся в Гц, текущие единицы по
+/// умолчанию — ГГц. Функции объявлены и описаны в `frqdata.h`.
+/// @see https://www.tamic.ru/docs/code/lib-sfile95.html#frequency-table
+
 #include <stdio.h>
 
 #include <typedef.h>
@@ -19,8 +27,10 @@
 #include <error1.h>
 
 
+/// Хранилище частот глобальной таблицы, Гц; длина `FREQ_MAX_NUM`.
 static _real frq_buff[FREQ_MAX_NUM];  /*buffer for frequency */
 
+/// Глобальная таблица частот: пуста, текущие единицы — ГГц (код 3).
 static FREQUENCY frq = { 0,                    /* current frequency point  */
                          0,                    /* maximal frequency point  */
                          frq_buff,             /* frequency point array    */
@@ -39,6 +49,7 @@ int set_frequency( _real f0, _real df, int nf )
   int num;
 
   frq.max = nf;
+  // перевод из текущих единиц в Гц
   f0 *= frq.unit[frq.code];
   df *= frq.unit[frq.code];
 
@@ -65,7 +76,7 @@ int   set_frq_nf( int nMax )
    return 0;
   }
 
-char  * get_frq_item( int num ) { return( frq.item[num] ); }
+const char  * get_frq_item( int num ) { return( frq.item[num] ); }
 _real get_frq_unit( int num ) { return frq.unit[num]; }
 int   get_frq_item_code( void ) { return frq.code; }
 void  set_frq_element( _real fValue, int index ) { frq.f[index] = fValue; }

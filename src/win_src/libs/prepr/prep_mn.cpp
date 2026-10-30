@@ -15,6 +15,14 @@
 **
 */
 
+/// @file prep_mn.cpp
+/// @brief Главный проход препроцессора .tpl: точка входа, чтение задания, запись результата.
+///
+/// Часть модуля «Библиотека prepr». Содержит `MainPrepr1()` и `main_preproc()`, глобальный
+/// связный буфер `buf`, приёмник текста ошибки `szError` с функцией `put_error_messege`,
+/// папку задания (`GetCurrentPath`), вырезание комментариев `!` и мелкие функции памяти.
+/// @see https://www.tamic.ru/docs/code/lib-prepr.html#pipeline
+
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -23,7 +31,6 @@
 #include <typedef.h>
 #include <tmclimit.h>
 #include <mainwndw.h>
-#include <tpl_file.h>
 #include <tmc_lib.h>
 #include <error1.h>
 
@@ -31,8 +38,14 @@
 
 
 
+/// Связный буфер со всем текстом задания на время одного прохода препроцессора.
+/// Создаётся в `main_preproc()` (`buf_init`), освобождается `unload_prep_buf()`.
 BUFFER buf;
+/// Текст последней ошибки препроцессора (английский), `BUF_STR_N_MAX` байт; пустая строка —
+/// ошибок нет. Выделяется и освобождается `MainPrepr1()`, пишется `put_error_messege`.
 char *szError;
+/// Папка задания без завершающей косой черты, `BUF_STR_N_MAX` байт. Выделяется в
+/// `MainPrepr1()`, возвращается `GetCurrentPath()`.
 char *szPathName;
 
                                           /*  worker definer/includer*/
@@ -89,6 +102,9 @@ void MainPrepr1( char *csTplFileNamePrepr,	char *csTplFileName, char *csCurrentP
 
 
 
+/// @brief Гарантирует непустой текст ошибки: если `szError` пуст, пишет в него общий текст по коду.
+/// @param[in] i_err  код возврата функции препроцессора; 0 — ничего не делается
+/// @return `szError`.
 // S-17: a function of the preprocessor returned an error code without a text -> generic text
 static char *prep_error( int i_err )
 {
@@ -106,7 +122,7 @@ char * main_preproc( char *szTargetFileName, char *szSourceFileName )
   char *str;
   FILE *pfIn, *pfOut;
 
-  sprintf( szError, "");
+  szError[0] = '\0';
   remove( szTargetFileName );   // S-17: the file of the previous run must not be read after an error
 
   if( (str = new char[ BUF_STR_INLINE_MAX + 1 ]) == NULL )   // N-26: buf_gets writes n characters and 0
@@ -131,6 +147,8 @@ char * main_preproc( char *szTargetFileName, char *szSourceFileName )
     sprintf( szError, "preprocessor: not enough memory for the buffer" );
     return szError;
   }
+  // Шаг 1: файл задания построчно в буфер; каждая строка — отдельная запись с '\0',
+  // комментарий '!' отрезается сразу при чтении.
   buf.inp_p = 0;
   while( fgets( str, BUF_STR_INLINE_MAX, pfIn ) != NULL )				  /* read data in buffer */
    {
@@ -153,6 +171,8 @@ char * main_preproc( char *szTargetFileName, char *szSourceFileName )
 
   buf.inp_p = 0;
 
+  // Шаг 2: склейка переносов и вставка #include; шаг 3: временный файл макросов;
+  // шаг 4: проверка повторных #define; шаг 5: подстановка макросов.
   if( ( i_err = def_include( &buf ) ) == 0 )                          /* include file*/
    {
     buf.inp_p = 0;
@@ -183,7 +203,7 @@ char * main_preproc( char *szTargetFileName, char *szSourceFileName )
 	return prep_error( i_err );   // S-17: #include error without a text
   };
 
-  // ��� 6: ������ ������ � ���� ���������� (I-08: ������ ��� ������; ������ � � ����� ������ #include).
+  // Шаг 6: запись буфера в файл результата (I-08: только без ошибок; раньше — и после ошибки #include).
   buf.inp_p = 0;
   if( (pfOut = fopen( szTargetFileName, "w" )) == NULL ) 
   {
@@ -213,7 +233,10 @@ int  unload_prep_buf( void )
   return( 0 );
   }
 
-int    put_error_messege( char *szError1 )
+// Определение `put_error_messege( const char * )` (объявлена в error1.h) для препроцессора:
+// копирует текст ошибки в `szError`; длина текста должна быть меньше BUF_STR_N_MAX.
+// Возвращает 0.
+int    put_error_messege( const char *szError1 )
 {
 	strcpy( szError, szError1 );
 	return 0;

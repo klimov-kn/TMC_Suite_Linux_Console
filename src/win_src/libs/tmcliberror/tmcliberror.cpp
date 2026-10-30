@@ -1,8 +1,12 @@
 // TmcLibError.cpp : implementation file
 //
 
-#include "stdafx.h"
-#include <TmcLibError.h>
+/// @file tmcliberror.cpp
+/// @brief Реализация объекта ошибки `CTmcLibError` и двух функций имён временных файлов.
+///
+/// Единственный исходный файл библиотеки TMCLibError. Описания методов — в tmcliberror.h.
+/// @see https://www.tamic.ru/docs/code/lib-tmcliberror.html
+#include <tmcliberror.h>
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -46,7 +50,7 @@ void CTmcLibError::PutErrorMessage( CString csErrorMessage )
 	return;
 }
 
-void CTmcLibError::PutErrorMessage( char *pszErrorMessage )
+void CTmcLibError::PutErrorMessage( const char *pszErrorMessage )
 {
 	bIsError = TRUE;
 	csError.Format( "%s", pszErrorMessage );
@@ -62,20 +66,9 @@ CString CTmcLibError::GetErrorMessage( void )
 CTmcLibError& CTmcLibError::operator=( CTmcLibError& cError1 )
 {
 	bIsError = cError1.IsError();
-	csError = cError1.GetErrorMessage();   // было: Format("%s", ...) — CString в варарг %s
-	                                       // на g++ UB; присваивание эквивалентно по логике
+	csError.Format( "%s", cError1.GetErrorMessage() );
 	return (*this);
 }
 
-void MakeTempFileNameForBzCalcMn(CString & csTplFileName)
-{
-	csTplFileName += "_for_Bz_Mn";
-	return;
-}
 
-void MakeTempFileNameForBzCalcPl(CString & csTplFileName)
-{
-	csTplFileName += "_for_Bz_Pl";
-	return;
-}
 

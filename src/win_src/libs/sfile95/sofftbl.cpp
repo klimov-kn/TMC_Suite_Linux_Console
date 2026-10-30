@@ -11,12 +11,15 @@
 **
 */
 
+/// @file sofftbl.cpp
+/// @brief Занесение частоты и смещения блока в таблицу смещений S-файла (`update_offset_table`).
+///
+/// Часть модуля «Библиотека sfile95». Функция объявлена и описана в `s_file.h`.
+/// @see https://www.tamic.ru/docs/code/lib-sfile95.html#offset-table
+
 #include <stdio.h>
 #include <string.h>
 
-#ifndef _HIGH_ACCURACY
- #define _HIGH_ACCURACY
-#endif
 
 #include <typedef.h>
 #include <tmclimit.h>
@@ -50,11 +53,13 @@ int update_offset_table( _real frq, int num, int nTBL_Flag )
    /* skipping length of the offset table */
   if( fseek( sf, (long)sizeof(WORD), SEEK_CUR ) != 0 ) return -1;
 
+  // в шапку таблицы пишется число уже записанных частот (номер + 1)
   num++;
   nBuf = num;
   if( write_S( &nBuf, sizeof( INT_1 ) ) != 0 ) return -1; /* write frq num */
   num--;
 
+  // запись номер num: 8 байт частоты + 4 байта смещения
   lOffset =  num*(sizeof(_real)+sizeof(int));  /* S_OFFSET offset */
   s_Offset.frq     = frq;
   s_Offset.lOffset = (int)fPos_t;

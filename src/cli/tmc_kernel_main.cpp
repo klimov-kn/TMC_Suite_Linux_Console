@@ -1,25 +1,14 @@
-// tmc_kernel_main.cpp — консольная точка входа счётных ядер (tmc_rth, tmc_rtx).
-//
-// Один файл на оба ядра: заголовок <tmcrthrectnode.h> находится в каталоге
-// своего ядра (путь включения цели), а различия — макросы TMC_KERNEL_MODE
-// ("H"/"X") и TMC_KERNEL_EXE из CMake.
-//
-// Режим работы: файл -> расчёт -> файл. Имя ВХОДНОГО файла (.tpl) — аргумент.
-// Имена ВЫХОДНЫХ файлов берутся из самого задания (раздел #OUTPUT), файлы
-// пишутся рядом с заданием — как в Windows-версии.
-//
-// Цикл повторяет пакетный расчёт Windows-версии 5.0 — CPlanRT_HDoc::RunAll() и
-// RunAll1() (planrt_hdoc.cpp) — без окон: замер времени (ключ -Time), те же
-// сообщения в консоль и те же коды завершения
-//     0 — все шаги посчитаны, 1 — ошибка задания, 2 — ошибка расчёта,
-//     3 — расчёт остановлен (Ctrl+C, сигнал TERM).
-// Расчёт на видеокарте (-GPU, -GPU:n, -CPU, переменная TMC_GPU) ядро выбирает
-// само по командной строке процесса (tmcgpuh.h / tmcgpux.h).
-// Математика не затронута.
+/// @file tmc_kernel_main.cpp
+/// @brief Консольная точка входа счётных ядер `tmc_rth` и `tmc_rtx`: файл -> расчёт -> файл.
+///
+/// Один файл на оба ядра: заголовки находятся в каталоге своего ядра, различия задают
+/// макросы `TMC_KERNEL_MODE` ("H"/"X") и `TMC_KERNEL_EXE` из CMake. Имя задания `.tpl` — довод
+/// командной строки; имена выходных файлов берутся из раздела `#OUTPUT`, файлы пишутся рядом
+/// с заданием. Цикл повторяет `CPlanRT_HDoc::RunAll()` и `RunAll1()` Windows-версии без окон:
+/// замер времени (`-Time`), те же сообщения и те же коды завершения. Математики здесь нет.
+/// @see https://www.tamic.ru/docs/platforms/linux-cli.html
 
-#include <afxwin.h>            // слой MFC (CString и пр.) — только Linux
 #include <tmcrthrectnode.h>    // CTmcRTHRectNode — вычислительный класс ядра
-#include <planrt_h.h>          // -> resource.h (IDD_*): его ждут заголовки pl_iofor.h
 #include <pl_iofor.h>          // TMC_EXIT_*, ConsolePrint
 
 #include "tmc_about.h"
@@ -36,24 +25,30 @@
 
 #include <unistd.h>
 
-// Режим вывода хода расчёта (строка состояния Windows-версии) — для
-// tmc_kernel_console.cpp: 0 — тихо, 1 — обычный, 2 — подробный.
+/// Подробность хода расчёта: 0 — тихо (`-q`), 1 — обычный, 2 — подробный (`--verbose`).
 int g_nTmcTraceLevel = 1;
 
 namespace {
 
+/// Признак остановки: выставляется обработчиком сигнала.
 volatile std::sig_atomic_t g_bStop = 0;
+/// Ядро, которому обработчик сигнала передаёт остановку; `nullptr` — расчёт не идёт.
 CTmcRTHRectNode *g_pNode = nullptr;
+/// Текущий шаг задания: для сообщений об исключениях.
+int nStep = 1;
 
-// Ctrl+C / kill: расчёт останавливается так же, как кнопкой «Стоп» в окне
-// (CTmcRTHRectNode::Stop — снять признак счёта); итог — код 3.
+/// @brief Обработчик Ctrl+C и `kill`: останавливает расчёт, как кнопка «Стоп» в окне; итог — код 3.
+/// Номер сигнала не используется.
 extern "C" void OnStopSignal( int )
 {
     g_bStop = 1;
     if( g_pNode ) g_pNode->Stop();
 }
 
-// Ключ: «-имя» или «--имя» без учёта регистра (как /Time, /GPU в Windows).
+/// @brief Проверяет ключ: «-имя» или «--имя» без учёта регистра (как `/Time`, `/GPU` в Windows).
+/// @param[in] arg довод командной строки
+/// @param[in] name имя ключа без дефиса
+/// @return true — довод и есть этот ключ.
 bool IsKey( const char *arg, const char *name )
 {
     if( arg[0] != '-' ) return false;
@@ -61,6 +56,9 @@ bool IsKey( const char *arg, const char *name )
     return strcasecmp( k, name ) == 0;
 }
 
+/// @brief Проверяет ключ видеокарты: `-GPU`, `-GPU:n`, `-GPU=n`.
+/// @param[in] arg довод командной строки
+/// @return true — ключ видеокарты; выбор карты делает ядро (`tmcgpuh.h`, `tmcgpux.h`).
 bool IsGpuKey( const char *arg )
 {
     if( arg[0] != '-' ) return false;
@@ -69,6 +67,8 @@ bool IsGpuKey( const char *arg )
     return k[3] == '\0' || k[3] == ':' || k[3] == '=';
 }
 
+/// @brief Печатает справку на выбранном языке.
+/// @param[in] exe имя программы
 void PrintUsage( const char *exe )
 {
     const bool ru = TmcRussian();
@@ -122,8 +122,10 @@ void PrintUsage( const char *exe )
             exe, TMC_KERNEL_MODE );
 }
 
-// Полный путь к заданию: каталог задания нужен ядру для вложенных файлов
-// (#include, распределения .eps) и выходных файлов — как GetPathName() в Windows.
+/// @brief Полный путь к заданию: каталог задания нужен ядру для вложенных файлов (`#include`,
+///        распределения `.eps`) и выходных файлов, как `GetPathName()` в Windows.
+/// @param[in] path путь из командной строки
+/// @return Полный путь; если его нельзя получить — путь как есть.
 std::string FullPath( const char *path )
 {
     char buf[PATH_MAX];
@@ -131,10 +133,15 @@ std::string FullPath( const char *path )
     return std::string( path );
 }
 
-// Тело CPlanRT_HDoc::RunAll1(): все шаги задания по порядку.
+/// @brief Все шаги задания по порядку: то же, что `CPlanRT_HDoc::RunAll1()` Windows-версии.
+/// @param[in,out] cRectNode счётное ядро
+/// @param[in] csPath полный путь к заданию
 void RunAll1( CTmcRTHRectNode &cRectNode, const CString &csPath )
 {
-    int i, n, nStep = 1;
+    int i, n;
+    nStep = 1;
+
+    SetRunWarning( "" );        // предупреждения этого расчёта
 
     __int64 qTmPr = TmcTimingNow();                                 // TIMING
     n = cRectNode.GetNStepMax( csPath ) + 1;
@@ -200,11 +207,16 @@ void RunAll1( CTmcRTHRectNode &cRectNode, const CString &csPath )
         ConsolePrint( "Step %d of %d: done", nStep, n - 1 );
     };
 
+    if( GetRunWarning()[0] != '\0' ) PutTrace( GetRunWarning() );   // предупреждение ещё раз в конце
     SetRunExitCode( TMC_EXIT_OK );
 }
 
 } // namespace
 
+/// @brief Точка входа: язык, ключи, проверка задания, расчёт, отчёт о времени, код завершения.
+/// @param[in] argc число доводов
+/// @param[in] argv задание `.tpl` и ключи (см. `PrintUsage`)
+/// @return 0 — все шаги посчитаны, 1 — ошибка задания, 2 — ошибка расчёта, 3 — расчёт остановлен.
 int main( int argc, char **argv )
 {
     // Числа в файлах TMC пишутся и читаются только с ТОЧКОЙ — так их создаёт
@@ -269,7 +281,8 @@ int main( int argc, char **argv )
         // Видеокарту выбирает само ядро по командной строке процесса.
         if( IsGpuKey( a ) || IsKey( a, "CPU" ) )  continue;
         // Ключи пакетного режима Windows-версии: консольная версия всегда так работает.
-        if( IsKey( a, "Ar" ) || IsKey( a, "Arb" ) ) continue;
+        // -d (демонстрация) там показывает поле в FieldView — окон здесь нет, остаётся пакетный счёт.
+        if( IsKey( a, "Ar" ) || IsKey( a, "Arb" ) || IsKey( a, "d" ) ) continue;
         if( a[0] == '-' && a[1] != '\0' )
         {
             std::fprintf( stderr, TmcRussian() ? "%s: неизвестный ключ %s (справка: %s --help)\n"
@@ -309,7 +322,7 @@ int main( int argc, char **argv )
 
     const std::string full = FullPath( pszTask );
     const CString csPath( full.c_str() );
-    ConsolePrint( "File: %s", full.c_str() );
+    ConsolePrint( "File: %s", pszTask );
 
     struct sigaction sa;
     std::memset( &sa, 0, sizeof( sa ) );
@@ -319,6 +332,8 @@ int main( int argc, char **argv )
     ::sigaction( SIGTERM, &sa, nullptr );
 
     // Тело CPlanRT_HDoc::RunAll(): замер всего расчёта, исключения — код 2.
+    // До конца расчёта стоит код «остановлено», как в пакетном режиме Windows-версии.
+    SetRunExitCode( TMC_EXIT_ABORTED );
     static CTmcRTHRectNode cRectNode;   // большой объект — не на стеке
     g_pNode = &cRectNode;
     cRectNode.GetTiming().BeginRunAll();
@@ -328,13 +343,13 @@ int main( int argc, char **argv )
     }
     catch( std::bad_alloc & )
     {
-        ConsolePrint( "ERROR in calculation: not enough memory" );
+        ConsolePrint( "ERROR in calculation (step %d): not enough memory", nStep );
         PutTrace( "Error: not enough memory" );
         SetRunExitCode( TMC_EXIT_CALC_ERROR );
     }
     catch( ... )
     {
-        ConsolePrint( "ERROR in calculation: unknown exception" );
+        ConsolePrint( "ERROR in calculation (step %d): unknown exception", nStep );
         PutTrace( "Error: exception in calculation" );
         SetRunExitCode( TMC_EXIT_CALC_ERROR );
     };

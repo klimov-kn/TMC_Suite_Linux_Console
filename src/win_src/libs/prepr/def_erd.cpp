@@ -17,10 +17,19 @@
 **
 */
 
+/// @file def_erd.cpp
+/// @brief Проверка повторных `#define` и запись временного файла макросов.
+///
+/// Часть модуля «Библиотека prepr». Содержит `def_err_dec()` (поиск повторно
+/// определённых имён за один проход с сортировкой), `load_vr_file()` и
+/// `vr_mac_file_name()` (временный файл `$$vr$$s<PID>.prc`).
+/// @see https://www.tamic.ru/docs/code/lib-prepr.html#redefine
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>   // BUG-004: qsort, realloc
-#include <process.h>  // S-16: _getpid
+/// Текст ошибки: запись `#define` длиннее `BUF_STR_N_MAX` символов или текст кончился внутри
+/// неё (например, перенос `\\` в последней строке файла).
 // S-17: buf_gets did not read the line of #define up to its end
 #define DEF_MSG_LINE (char *)"#define: the line is longer than 500000 characters or the text ends inside it (a '\\\\' at the end of the file?)"
 
@@ -30,17 +39,32 @@
 #include "prepr1.h"
 
 
+/// @brief Читает запись `#define` в позиции `buf->inp_p` и выделяет из неё имя макроса.
+///
+/// @param[out]    mac  рабочая структура; имя — `mac->m[0]`
+/// @param[in,out] buf  буфер; `inp_p` восстанавливается при успехе
+/// @return `BUF_NULL` — успех; `-1` — запись слишком длинная или ошибка в заголовке
+///         `#define` (текст ошибки дополняется самой строкой).
 static int def_get_mac_name( MACROS *mac, BUFFER *buf);
 
+/// Текст ошибки препроцессора (определён в prep_mn.cpp).
 extern char *szError;       // Prep_mn.cpp: the text of the error
 
+/// @brief Имя одного `#define` в списке для поиска повторов.
 typedef struct              // BUG-004: name of one #define
 {
+  /// Смещение имени в общем массиве имён, байт.
   size_t      nOff;         // offset of the name in the common buffer
+  /// Порядковый номер `#define` в тексте (с 0).
   int         n;            // number of the #define in the text
+  /// Указатель на имя (заполняется после сбора всех имён).
   const char *psz;
 } DEF_MAC_NAME;
 
+/// @brief Сравнивает два элемента `DEF_MAC_NAME` для `qsort`: по имени, при равенстве — по номеру.
+/// @param[in] a  первый элемент
+/// @param[in] b  второй элемент
+/// @return <0, 0, >0 — как `strcmp`.
 static int def_mac_name_cmp( const void *a, const void *b )   // BUG-004: by name, then by number
 {
   const DEF_MAC_NAME *pa = (const DEF_MAC_NAME *)a;
@@ -50,6 +74,9 @@ static int def_mac_name_cmp( const void *a, const void *b )   // BUG-004: by nam
   return (pa->n < pb->n) ? -1 : ((pa->n > pb->n) ? 1 : 0);
 }
 
+/// @brief Формирует ошибку «`Redefined <имя>`» (имя обрезается до 200 символов).
+/// @param[in] pszName  повторно определённое имя
+/// @return `BUF_ERROR_REDEC`.
 static int def_err_redec( const char *pszName )   // BUG-002: the name can be long
 {
   char szBuf[300];
@@ -138,6 +165,8 @@ int def_err_dec( BUFFER *buf )
   }
 
 
+/// Имя временного файла макросов текущего процесса; до первого `vr_mac_file_name()` —
+/// базовое `VR_MAC_FILE_NAME`.
 static char name_vr_mac_file[64] = VR_MAC_FILE_NAME;
 const char *vr_mac_file_name( void )   // S-16: the name with the process number
 {
@@ -145,13 +174,13 @@ const char *vr_mac_file_name( void )   // S-16: the name with the process number
     snprintf( name_vr_mac_file, sizeof(name_vr_mac_file), "$$vr$$s%lu.prc", (unsigned long)_getpid() );
   return name_vr_mac_file;
 }
+/// Образец начала директивы для `load_vr_file()` (только с пробелом, 8 символов).
 static char szDefine[] = "#define ";
 
                      /*  load preprocessor time file ( save macro define )*/
 int load_vr_file( BUFFER *buf )
  {
   FILE *vr_mac;
-  char       FgetsBuff[BUFSIZ];
   char       *str;
 
   int p;
@@ -175,24 +204,13 @@ int load_vr_file( BUFFER *buf )
     delete []str;
     return( -11 );
     }
-  if( GetCurrentPath()[0] != '\0' ) _snprintf( szVrName, sizeof(szVrName), "%s\\%s", GetCurrentPath(), name_vr_mac_file );
+  if( GetCurrentPath()[0] != '\0' ) _snprintf( szVrName, sizeof(szVrName), "%s/%s", GetCurrentPath(), name_vr_mac_file );
   else                              _snprintf( szVrName, sizeof(szVrName), "%s", name_vr_mac_file );
   szVrName[sizeof(szVrName)-1] = '\0';
   // I-07: the file is not written - nobody reads it (old: fopen "w" below; no right to write -> error -11)
-  /// I-07: ��������� ���� �������� �� �������: ��� ����� �� ������; ��� ����� ������ � ����� �������
-  /// ������������ ��������������. �������� ����� `#define` (DEF_MSG_LINE) ���� ���������.
+  /// I-07: временный файл макросов не пишется: его никто не читает; без права записи в папку задания
+  /// препроцессор останавливался. Проверка строк `#define` (DEF_MSG_LINE) ниже сохранена.
   vr_mac = NULL;
-#if 0	// I-07: the old opening of the file
-  if( (vr_mac = fopen( szVrName, "w")) == NULL)
-   {
-	snprintf( str, BUF_STR_N_MAX, "Can't open file %s for writing (%u characters; no right to write into the task folder or the path is too long?)",
-	          szVrName, (unsigned)strlen( szVrName ) );   // S-21 (O16): the name was not printed
-    put_error_messege( str );
-	delete []str;
-    return( -11 );
-    }
-  setbuf( vr_mac, FgetsBuff );
-#endif
 
   p = buf->inp_p;
   buf->inp_p = 0;
@@ -209,6 +227,8 @@ int load_vr_file( BUFFER *buf )
          return -1;
         }
                     /*  puts string in time file*/
+      // Внутренние переводы строки многострочного определения снова записываются
+      // с переносом: строка, два обратных слеша, пробел.
       for( i = 0, str1 = str; str[ i ] != '\0'; i++)
        {
 	if( (str[ i ] == '\n')&&(str[ i+1 ] != '\0' ) )
@@ -244,7 +264,7 @@ static int def_get_mac_name( MACROS *mac, BUFFER *buf)
     put_error_messege( DEF_MSG_LINE );   // S-17
     return -1;
   }
-  snprintf( szLine, sizeof(szLine), "%s", mac->mac );          // S-21: the line for the message
+  if( snprintf( szLine, sizeof(szLine), "%s", mac->mac ) < 0 ) szLine[0] = '\0';          // S-21: the line for the message
   szLine[sizeof(szLine)-1] = '\0';
   if( strchr( szLine, '\n' ) != NULL ) *strchr( szLine, '\n' ) = '\0';
   if(  def_separ_mac_name( buf, mac) < 0 )

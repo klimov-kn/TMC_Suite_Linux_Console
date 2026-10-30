@@ -14,6 +14,12 @@
 **
 */
 
+/// @file def_dest.cpp
+/// @brief Удаление временного файла макросов `$$vr$$s<PID>.prc` после прохода препроцессора (`dest_prep`).
+///
+/// Часть модуля «Библиотека prepr».
+/// @see https://www.tamic.ru/docs/code/lib-prepr.html#vr-file
+
 #include <stdio.h>
 	 
 #include <string.h>   // N-29
@@ -27,7 +33,7 @@ int dest_prep( void )
  {
    char szName[512];
    if( strlen( GetCurrentPath() ) + 1 + strlen( vr_mac_file_name() ) >= sizeof(szName) ) return -1;   // N-29
-   sprintf( szName, "%s\\%s", GetCurrentPath(), vr_mac_file_name());   // S-16
+   sprintf( szName, "%s/%s", GetCurrentPath(), vr_mac_file_name());   // S-16
 
    return( remove( szName ) );    /* delete time-file VR_MAC_FILE_NAME */
    }

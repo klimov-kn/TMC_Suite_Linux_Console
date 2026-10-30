@@ -1,15 +1,11 @@
-// tmc_about.cpp — «О программе», язык сообщений и руководство пользователя
-// консольных ядер.
-//
-// Данные — те же, что в окне «О программе» Linux-версии 5.0 с интерфейсом
-// (TMC_Suite_Qt/src/gui_common/aboutbox.cpp): версия пакета, год, автор, его
-// страницы, сайт, руководство на сайте и имя файла руководства в поставке.
-// Оформление в терминале повторяет окно: рамка, акцентный цвет проекта
-// (#34e3c4), «плашки» версии и системы, ссылки, по которым можно щёлкнуть
-// (в терминалах, которые это умеют). Если вывод не в терминал или задана
-// переменная NO_COLOR — без цвета.
-//
-// К расчёту отношения не имеет.
+/// @file tmc_about.cpp
+/// @brief «О программе», язык сообщений и руководство пользователя консольных ядер.
+///
+/// Данные — те же, что в окне «О программе» версий с интерфейсом: версия пакета, год, автор,
+/// его страницы, сайт, руководство. Оформление в терминале повторяет окно: рамка, акцентный
+/// цвет проекта, «плашки» версии и системы, ссылки. Если вывод не в терминал или задана
+/// переменная `NO_COLOR` — без цвета. К расчёту отношения не имеет.
+/// @see https://www.tamic.ru/docs/platforms/linux-cli.html
 
 #include "tmc_about.h"
 
@@ -27,30 +23,29 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifndef TMC_KERNEL_MODE
-#define TMC_KERNEL_MODE "H"
-#endif
-#ifndef TMC_KERNEL_EXE
-#define TMC_KERNEL_EXE "tmc_rth"
-#endif
-#ifndef TMC_VERSION_SHORT
-#define TMC_VERSION_SHORT "5.0"
-#endif
-
 namespace {
 
+/// Год в «О программе».
 const char kYear[]       = "2026";
+/// Адрес сайта.
 const char kSiteUrl[]    = "https://www.tamic.ru";
+/// Адрес сайта для показа.
 const char kSiteText[]   = "www.tamic.ru";
+/// Руководство на сайте.
 const char kOnlineDoc[]  = "https://www.tamic.ru/docs/user-manual/index.html";
+/// Имя файла руководства в поставке.
 const char kManualFile[] = "TMC_Suite_User_Manual.pdf";
+/// Имя файла английского руководства в поставке.
+const char kManualFileEn[] = "TMC_Suite_User_Manual_EN.pdf";
 
+/// Страница автора.
 struct ProfileLink
 {
-    const char *name;
-    const char *url;
+    const char *name;   ///< Название сайта.
+    const char *url;    ///< Адрес страницы.
 };
 
+/// Страницы автора в «О программе».
 const ProfileLink kProfiles[] = {
     { "GitHub",       "https://github.com/klimov-kn" },
     { "LinkedIn",     "https://www.linkedin.com/in/konstantinklimov" },
@@ -58,14 +53,15 @@ const ProfileLink kProfiles[] = {
     { "eLibrary",     "https://www.elibrary.ru/author_items.asp?authorid=121878" },
 };
 
-// Название и назначение — из окна «О программе» (по авторской документации).
+/// Название и назначение ядра — из окна «О программе» (по авторской документации).
 struct KernelInfo
 {
-    const char *name;
-    const char *descriptionRu;
-    const char *descriptionEn;
+    const char *name;            ///< Название.
+    const char *descriptionRu;   ///< Назначение по-русски.
+    const char *descriptionEn;   ///< Назначение по-английски.
 };
 
+/// Сведения о ядре H.
 const KernelInfo kKernelH = {
     "PlanarRT_H",
     "Счётное ядро для электродинамического анализа H-плоскостных планарных "
@@ -74,6 +70,7 @@ const KernelInfo kKernelH = {
     "waveguide microwave devices by the Rt-grid method."
 };
 
+/// Сведения о ядре X.
 const KernelInfo kKernelX = {
     "PlanarRT_X",
     "Счётное ядро, реализующее 4-параметрический алгоритм анализа рассеяния "
@@ -82,11 +79,15 @@ const KernelInfo kKernelX = {
     "analysis of E-polarized electromagnetic waves by inhomogeneous magnetized plasma."
 };
 
+/// @brief Сведения о ядре этой программы.
+/// @return Сведения о ядре H или X.
 const KernelInfo &Kernel()
 {
     return ( std::strcmp( TMC_KERNEL_MODE, "X" ) == 0 ) ? kKernelX : kKernelH;
 }
 
+/// @brief Архитектура процессора.
+/// @return Название для показа.
 const char *Arch()
 {
 #if defined(__aarch64__)
@@ -98,17 +99,27 @@ const char *Arch()
 #endif
 }
 
+/// Язык сообщений: true — русский.
 bool g_bRussian = false;
 
+/// @brief Выбирает текст по языку сообщений.
+/// @param[in] ru текст по-русски
+/// @param[in] en текст по-английски
+/// @return Текст на выбранном языке.
 const char *T( const char *ru, const char *en ) { return g_bRussian ? ru : en; }
 
+/// @brief Проверяет, что путь — обычный файл.
+/// @param[in] path путь
+/// @return true — файл есть.
 bool IsFile( const std::string &path )
 {
     struct stat st;
     return ::stat( path.c_str(), &st ) == 0 && S_ISREG( st.st_mode );
 }
 
-// Программа есть в PATH и её можно запустить.
+/// @brief Проверяет, что программа есть в `PATH` и её можно запустить.
+/// @param[in] name имя программы
+/// @return true — можно запустить.
 bool HaveProgram( const char *name )
 {
     const char *path = std::getenv( "PATH" );
@@ -128,7 +139,9 @@ bool HaveProgram( const char *name )
     return false;
 }
 
-// Аргумент для /bin/sh в одинарных кавычках.
+/// @brief Заключает довод для `/bin/sh` в одинарные кавычки.
+/// @param[in] s довод
+/// @return Довод в кавычках.
 std::string ShellQuote( const std::string &s )
 {
     std::string r = "'";
@@ -145,8 +158,8 @@ std::string ShellQuote( const std::string &s )
 // Язык: общий выбор с версией с интерфейсом
 // =============================================================================
 
-// ~/.config/TMC_Suite_Qt/Common.ini — тот же файл, что у Linux-версии с
-// интерфейсом (QSettings, раздел [UI], ключ Language = ru | en | system).
+/// @brief Каталог настроек версии с интерфейсом.
+/// @return `~/.config/TMC_Suite_Qt` (учитывается `XDG_CONFIG_HOME`); пусто, если неизвестен домашний каталог.
 std::string SettingsDir()
 {
     const char *xdg = std::getenv( "XDG_CONFIG_HOME" );
@@ -161,12 +174,17 @@ std::string SettingsDir()
     return base + "/TMC_Suite_Qt";
 }
 
+/// @brief Файл настроек: тот же, что у версии с интерфейсом (раздел `[UI]`, ключ `Language`).
+/// @return Путь к `Common.ini` или пустая строка.
 std::string SettingsFile()
 {
     const std::string d = SettingsDir();
     return d.empty() ? d : d + "/Common.ini";
 }
 
+/// @brief Читает строки файла без окончаний строк.
+/// @param[in] file путь
+/// @return Строки; файла нет — пусто.
 std::vector<std::string> ReadLines( const std::string &file )
 {
     std::vector<std::string> v;
@@ -184,13 +202,17 @@ std::vector<std::string> ReadLines( const std::string &file )
     return v;
 }
 
+/// @brief Убирает пробелы и табуляцию по краям.
+/// @param[in] s строка
+/// @return Строка без них.
 std::string Trim( const std::string &s )
 {
     size_t a = s.find_first_not_of( " \t" ), b = s.find_last_not_of( " \t" );
     return ( a == std::string::npos ) ? std::string() : s.substr( a, b - a + 1 );
 }
 
-// Значение UI/Language или пустая строка, если выбора ещё не было.
+/// @brief Читает выбранный язык.
+/// @return Значение `UI/Language`; пусто, если выбора ещё не было.
 std::string ReadLanguageSetting()
 {
     bool inUi = false;
@@ -206,7 +228,8 @@ std::string ReadLanguageSetting()
     return std::string();
 }
 
-// Записать UI/Language, сохранив остальные настройки файла.
+/// @brief Записывает `UI/Language`, сохраняя остальные настройки файла.
+/// @param[in] value ru, en или system
 void WriteLanguageSetting( const std::string &value )
 {
     const std::string dir = SettingsDir();
@@ -250,6 +273,8 @@ void WriteLanguageSetting( const std::string &value )
     std::fclose( f );
 }
 
+/// @brief Определяет русский язык системы по `LC_ALL`, `LC_MESSAGES`, `LANG`.
+/// @return true — русский.
 bool SystemIsRussian()
 {
     const char *vars[] = { "LC_ALL", "LC_MESSAGES", "LANG" };
@@ -261,8 +286,8 @@ bool SystemIsRussian()
     return false;
 }
 
-// Один раз спросить язык (по-русски и по-английски сразу).
-// Enter без ответа — язык системы. Возвращает "ru" или "en".
+/// @brief Один раз спрашивает язык (по-русски и по-английски сразу); Enter — язык системы.
+/// @return "ru" или "en".
 std::string AskLanguage()
 {
     const bool sysRu = SystemIsRussian();
@@ -288,19 +313,27 @@ std::string AskLanguage()
 // Вывод в терминал: рамка, цвет, ссылки
 // =============================================================================
 
+/// Оформление части строки в терминале.
 enum Style { S_TEXT, S_TITLE, S_ACCENT, S_DIM, S_MUTE, S_CHIP_MAIN, S_CHIP, S_LINK, S_CAPTION };
 
+/// Часть строки.
 struct Seg
 {
-    std::string text;
-    Style       style;
-    std::string url;     // ссылка (OSC 8), если терминал её поддерживает
+    std::string text;    ///< Текст.
+    Style       style;   ///< Оформление.
+    std::string url;     ///< Ссылка (OSC 8), если терминал её поддерживает.
 };
+/// Строка из частей.
 typedef std::vector<Seg> Line;
 
+/// Вывод с цветом.
 bool g_bColor = false;
-bool g_bTrue  = false;   // 24-битный цвет
+/// Терминал понимает 24-битный цвет.
+bool g_bTrue  = false;
 
+/// @brief Управляющая последовательность оформления.
+/// @param[in] s оформление
+/// @return Последовательность ANSI.
 const char *Ansi( Style s )
 {
     if( g_bTrue )
@@ -330,7 +363,9 @@ const char *Ansi( Style s )
     }
 }
 
-// Ширина в колонках терминала: число символов UTF-8 (широких знаков в тексте нет).
+/// @brief Ширина в колонках терминала: число символов UTF-8 (широких знаков в тексте нет).
+/// @param[in] s строка
+/// @return Ширина.
 size_t Width( const std::string &s )
 {
     size_t n = 0;
@@ -338,6 +373,9 @@ size_t Width( const std::string &s )
     return n;
 }
 
+/// @brief Ширина строки из частей.
+/// @param[in] l строка
+/// @return Ширина.
 size_t Width( const Line &l )
 {
     size_t n = 0;
@@ -345,7 +383,10 @@ size_t Width( const Line &l )
     return n;
 }
 
-// Первые n символов UTF-8 строки (по границе символа).
+/// @brief Длина в байтах первых символов строки UTF-8 (по границе символа).
+/// @param[in] s строка
+/// @param[in] chars число символов
+/// @return Число байтов.
 size_t BytesFor( const std::string &s, size_t chars )
 {
     size_t i = 0, n = 0;
@@ -361,16 +402,26 @@ size_t BytesFor( const std::string &s, size_t chars )
     return i;
 }
 
+/// Рамка «О программе» в терминале.
 class Box
 {
 public:
+    /// @brief Создаёт рамку.
+    /// @param[in] inner внутренняя ширина, колонок
     explicit Box( size_t inner ) : W( inner ) {}
 
+    /// @brief Добавляет строку.
+    /// @param[in] l строка
     void Add( const Line &l ) { lines.push_back( l ); }
+    /// @brief Добавляет разделитель.
     void Sep() { lines.push_back( Line( 1, Seg{ "\x01", S_TEXT, "" } ) ); }
+    /// @brief Добавляет пустую строку.
     void Blank() { lines.push_back( Line() ); }
 
-    // Текст с переносом по словам, отступ indent.
+    /// @brief Добавляет текст с переносом по словам.
+    /// @param[in] s текст
+    /// @param[in] st оформление
+    /// @param[in] indent отступ, колонок
     void Text( const std::string &s, Style st, size_t indent )
     {
         const size_t room = W - indent;
@@ -395,8 +446,13 @@ public:
             Add( Line{ Seg{ std::string( indent, ' ' ), S_TEXT, "" }, Seg{ cur, st, "" } } );
     }
 
-    // «Подпись   значение»; длинное значение (путь, адрес) переносится без
-    // разрывов слов — по символам, с тем же отступом.
+    /// @brief Добавляет «подпись  значение»; длинное значение (путь, адрес) переносится с тем же отступом.
+    /// @param[in] label подпись
+    /// @param[in] lst оформление подписи
+    /// @param[in] value значение
+    /// @param[in] vst оформление значения
+    /// @param[in] url ссылка значения
+    /// @param[in] col колонка значения
     void KV( const std::string &label, Style lst, const std::string &value, Style vst,
              const std::string &url = std::string(), size_t col = 15 )
     {
@@ -424,6 +480,8 @@ public:
         } while( !rest.empty() );
     }
 
+    /// @brief Печатает рамку в stdout.
+    /// @param[in] title заголовок
     void Print( const char *title ) const
     {
         const Style fr = S_MUTE;
@@ -463,6 +521,10 @@ public:
     }
 
 private:
+    /// @brief Печатает часть строки.
+    /// @param[in] text текст
+    /// @param[in] st оформление
+    /// @param[in] url ссылка
     static void Out( const std::string &text, Style st, const std::string &url = std::string() )
     {
         if( !g_bColor || text.find_first_not_of( ' ' ) == std::string::npos )
@@ -475,10 +537,12 @@ private:
         if( !url.empty() ) std::printf( "\033]8;;\033\\" );
     }
 
-    size_t W;
-    std::vector<Line> lines;
+    size_t W;                  ///< Внутренняя ширина.
+    std::vector<Line> lines;   ///< Строки.
 };
 
+/// @brief Ширина терминала.
+/// @return Число колонок; неизвестно — `COLUMNS` или 80.
 size_t TerminalColumns()
 {
     struct winsize ws;
@@ -488,6 +552,9 @@ size_t TerminalColumns()
     return 80;
 }
 
+/// @brief Оформляет «плашку» версии или системы.
+/// @param[in] s текст
+/// @return Текст плашки.
 std::string Chip( const std::string &s ) { return g_bColor ? " " + s + " " : "[" + s + "]"; }
 
 } // namespace
@@ -543,15 +610,18 @@ std::string TmcFindManual( void )
         exe + "/../doc",
         exe + "/..",
     };
-    for( const std::string &dir : places )
-    {
-        const std::string f = dir + "/" + kManualFile;
-        if( IsFile( f ) )
+    // Сначала — на языке сообщений, затем на другом.
+    const char *names[] = { g_bRussian ? kManualFile : kManualFileEn, g_bRussian ? kManualFileEn : kManualFile };
+    for( const char *name : names )
+        for( const std::string &dir : places )
         {
-            char real[PATH_MAX];
-            return ::realpath( f.c_str(), real ) ? std::string( real ) : f;
+            const std::string f = dir + "/" + name;
+            if( IsFile( f ) )
+            {
+                char real[PATH_MAX];
+                return ::realpath( f.c_str(), real ) ? std::string( real ) : f;
+            }
         }
-    }
     return std::string();
 }
 
@@ -609,7 +679,7 @@ void TmcPrintAbout( void )
     else
     {
         box.KV( T( "  Руководство", "  Manual" ), S_DIM, kOnlineDoc, S_LINK, kOnlineDoc );
-        box.KV( "", S_DIM, std::string( T( "файл ", "file " ) ) + kManualFile +
+        box.KV( "", S_DIM, std::string( T( "файл ", "file " ) ) + T( kManualFile, kManualFileEn ) +
                            T( " рядом с программой не найден", " was not found next to the program" ), S_MUTE );
     }
     box.Blank();
@@ -635,7 +705,7 @@ int TmcOpenManual( void )
                                  "Руководство на сайте: %s\n",
                                  "%s was not found next to the program.\n"
                                  "Online manual: %s\n" ),
-                      kManualFile, kOnlineDoc );
+                      T( kManualFile, kManualFileEn ), kOnlineDoc );
         return 1;
     }
 
@@ -651,9 +721,10 @@ int TmcOpenManual( void )
         if( pid == 0 )
         {
             ::setsid();                       // программа просмотра живёт сама по себе
-            std::freopen( "/dev/null", "r", stdin );
-            std::freopen( "/dev/null", "w", stdout );
-            std::freopen( "/dev/null", "w", stderr );
+            if( !std::freopen( "/dev/null", "r", stdin ) ||
+                !std::freopen( "/dev/null", "w", stdout ) ||
+                !std::freopen( "/dev/null", "w", stderr ) )
+                ::_exit( 127 );
             ::execlp( "xdg-open", "xdg-open", manual.c_str(), (char *)nullptr );
             ::_exit( 127 );
         }

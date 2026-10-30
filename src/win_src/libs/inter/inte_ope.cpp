@@ -19,6 +19,9 @@
 **
 */
 
+/// @file inte_ope.cpp
+/// @brief Операторы интерпретатора `return`, `if`, `while`: `inte_oper`, `inte_select_blanck`.
+/// @see https://www.tamic.ru/docs/code/lib-inter.html#operators
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +32,7 @@
 #include <tmc_lib.h>
 #include <inter.h>
 
+/// Таблица операторов: 0 — `return(`, 1 — `if(`, 2 — `while(`.
 INTE_OPER lpsOper[]=
                 {
 					{"return(", 7},
@@ -44,6 +48,7 @@ _real  inte_oper( char   *lex, int n )
   double d;
 
 
+  // return(e): значение e запоминается, код ERROR_RETURN прерывает разбор до inte_atof
   i = 0;
   if( strncmp( lpsOper[i].lpszName, lex, lpsOper[i].nLenght ) == 0)
   {
@@ -58,6 +63,7 @@ _real  inte_oper( char   *lex, int n )
   }
 
 
+  // if(c)S: S выполняется, если c >= 0; иначе результат — значение c
   i = 1;
   if( strncmp( lpsOper[i].lpszName, lex, lpsOper[i].nLenght ) == 0)
   {
@@ -70,6 +76,7 @@ _real  inte_oper( char   *lex, int n )
 	  return d;	  
   }
 
+  // while(c)S: S выполняется, пока c >= 0 (не более 10 000 000 раз)
   i = 2;
   if( strncmp( lpsOper[i].lpszName, lex, lpsOper[i].nLenght ) == 0)
   {

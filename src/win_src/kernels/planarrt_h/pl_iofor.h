@@ -1,70 +1,84 @@
-#include "mainfrm.h"
-#include "planrt_hdoc.h"
-#include "planrt_hview.h"
+/// @file pl_iofor.h
+/// @brief Форматы чисел в выходных файлах ядра, код завершения процесса и вывод в консоль.
+///
+/// Часть модуля «Счётное ядро H». Функции реализованы в `src/cli/tmc_kernel_console.cpp`:
+/// консольная версия работает как пакетный запуск Windows-версии.
+/// @see https://www.tamic.ru/docs/code/kernel-h.html#flags
 
 
 #ifndef _TMCRTH_IOFORMAT__H
 #define _TMCRTH_IOFORMAT__H
 
-#define MAX_LEN_FORMAT_OUT_FILE			100
+/// Длина буфера строки формата вывода (символов, с завершающим нулём).
+/// @name Форматы вывода по умолчанию (строки printf)
+/// Номер такта, время (с), номер блока, падающая и отражённая волны в `.t`;
+/// пустой формат поля — значения пишутся в двоичном виде.
+///@{
+/// Формат номера такта в `.t` по умолчанию.
 #define FORMAT_OUT_FILE_NTFORMAT		"%9d"
+/// Формат времени подтакта (с) в `.t` по умолчанию.
 #define FORMAT_OUT_FILE_DTCurrentFORMAT "%15.7g"
+/// Формат номера блока-порта в `.t` по умолчанию.
 #define FORMAT_OUT_FILE_NBFORMAT		"%4d"
+/// Формат падающей волны Up в `.t` по умолчанию.
 #define FORMAT_OUT_FILE_DINPFORMAT		"%15.7g"
+/// Формат отражённой волны Uo в `.t` по умолчанию.
 #define FORMAT_OUT_FILE_DOUTFORMAT		"%15.7g"
+/// Формат значений поля и топологии по умолчанию: пусто — двоичная запись.
 #define FORMAT_OUT_FILE_DFLDOUTFORMAT	""
 
-void SetnTFormat( CString csBuf );
+///@}
+
+/// @brief Возвращает формат номера такта.
+/// @return Строка формата (статический буфер).
 char *GetnTFormat( void );
-void SetdTcurrentFormat( CString csBuf );
+/// @brief Возвращает формат времени подтакта.
+/// @return Строка формата (статический буфер).
 char *GetdTcurrentFormat( void );
-void SetnBFormat( CString csBuf );
+/// @brief Возвращает формат номера блока.
+/// @return Строка формата (статический буфер).
 char *GetnBFormat( void );
-void SetdInpFormat( CString csBuf );
+/// @brief Возвращает формат падающей волны.
+/// @return Строка формата (статический буфер).
 char *GetdInpFormat( void );
-void SetdOutFormat( CString csBuf );
+/// @brief Возвращает формат отражённой волны.
+/// @return Строка формата (статический буфер).
 char *GetdOutFormat( void );
-void SetDefaultOutputFormat( void );
+/// @brief Возвращает формат значений поля и топологии.
+/// @return Строка формата; пустая — двоичный вывод.
 char *GetdFieldOutFormat( void );
-void SetdFieldOutFormat( CString csBuf );
-void SetAutoRunOn( void );
-void SetAutoRunOff( void );
-BOOL IsAutoRun( void );
-void SetDemoRunOn( void );
-void SetDemoRunOff( void );
-BOOL IsDemoRun( void );
-void Set_CommandLine_Flags( char *lpszCmdLine );
-void SwitchAutoRunFlag( void );
-void SetMainFramePointer__( CMainFrame* HwndMainFrame1 );
-void SetBatchRunOn( void );
-BOOL IsBatchRun( void );
-void SetTimeReportOn( void );	// TIMING: key /Time - calculation time report file
-void SetTimeReportOff( void );
-BOOL IsTimeReport( void );
-void SetProcessInformation( PROCESS_INFORMATION piProcInfo1 );
-PROCESS_INFORMATION GetProcessInformation( void );
-void SetPointerClassView( CPlanRT_HView* pcView1 );
-void RunOnViewField1( void );
 
 // RUN STATUS: process exit code and console messages for the command line run
 // (keys /Ar, /Arb). The exit code is returned by CPlanRT_HApp::ExitInstance.
+/// @name Коды завершения процесса ядра (ERRORLEVEL)
+///@{
+/// Код 0: все шаги задания посчитаны.
 #define TMC_EXIT_OK				0	// all steps of the .tpl are calculated
+/// Код 1: задание не найдено или ошибка в задании.
 #define TMC_EXIT_TPL_ERROR		1	// .tpl not found or error in .tpl (preprocessor, data)
+/// Код 2: ошибка при расчёте шага.
 #define TMC_EXIT_CALC_ERROR		2	// error during the calculation of a step
+/// Код 3: расчёт остановлен пользователем или окно закрыто до конца.
 #define TMC_EXIT_ABORTED		3	// stopped by the user / window closed before the end
+///@}
+
+/// @brief Задаёт код завершения процесса.
+/// @param[in] nCode один из `TMC_EXIT_*`
 void SetRunExitCode( int nCode );
+/// @brief Возвращает код завершения процесса.
+/// @return Один из `TMC_EXIT_*`.
 int  GetRunExitCode( void );
+/// @brief Запоминает последнее предупреждение расчёта (показывается снова в конце).
+/// @param[in] pszText текст; NULL или "" — очистить
 void SetRunWarning( const char *pszText );	// the last warning of the run ("" - clear)
+/// @brief Возвращает последнее предупреждение расчёта.
+/// @return Текст; "" — предупреждений не было.
 const char *GetRunWarning( void );			// "" - the run had no warnings
-void InitGpuSetting( BOOL bOn );			// GPU: at the start - the switch from the settings
-void SetGpuSetting( BOOL bOn );				// GPU: Config -> Compute on GPU
-BOOL IsGpuSettingOn( void );				// GPU: TMC_GPU of the process asks for the card
-int  GetGpuSettingCard( void );				// GPU: the card number (from TMC_GPU set outside, else 0)
-BOOL IsGpuKeyInCommandLine( void );			// GPU: /GPU, /GPU:n or /CPU in the command line
-void SetRunMainWnd( HWND hWnd );
-void SetRunClosing( void );
-void PostRunClose( void );
+/// @brief Пишет строку «[имя программы] текст» в консоль или перенаправленный вывод (только при автозапуске).
+/// @param[in] pszFormat формат printf
+/// @param[in] ... аргументы формата
 void ConsolePrint( const char *pszFormat, ... );
+/// @brief Пишет в консоль итог «RESULT n: ...» по коду завершения.
 void ConsoleReportResult( void );
 
 #endif

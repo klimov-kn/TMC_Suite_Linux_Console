@@ -8,6 +8,16 @@
  *  OVERLAY: NO
 */
 
+/// @file s_memf.cpp
+/// @brief Выделение и освобождение памяти для sfile95 и заглушки служебных функций TAMIC.
+///
+/// Часть модуля «Библиотека sfile95». `alloc_mem_err`, `free_mem`, `free_mem_null`
+/// (объявлены в `tmc_lib.h`) — обёртки `malloc`/`free`; ими пользуется и библиотека
+/// prepr. `stat_messege` (строка состояния, через макрос `put_trace`) и
+/// `get_comp_file_flag` (признак «составного» файла) — заглушки: ничего не делают
+/// и возвращают 0.
+/// @see https://www.tamic.ru/docs/code/lib-sfile95.html#memory
+
 
 #include <stdio.h>
 #include <string.h>
@@ -16,7 +26,6 @@
 
 #include <typedef.h>
 #include <tmclimit.h>
-#include <complex1.h>
 #include <tmc_lib.h>
 #include <frqdata.h>
 #include <s_file.h>

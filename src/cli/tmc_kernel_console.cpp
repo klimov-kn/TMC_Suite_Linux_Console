@@ -1,35 +1,15 @@
-// tmc_kernel_console.cpp — консольные реализации функций, которые в Windows-сборке
-// жили в GUI-файлах pl_glfun.cpp и pl_iofor.cpp ядер PlanarRT_H и PlanarRT_X.
-//
-// ОБЩИЙ для обоих ядер: интерфейс (имена/сигнатуры PutTrace/Beep*/Is*Run/формат-
-// геттеров/ConsolePrint/IsPointInTr) у H и X одинаков, а нужные заголовки
-// (<planrt_h.h>/<pl_iofor.h>/<typerth.h>) резолвятся в каталог соответствующего
-// ядра по пути включения цели. Один и тот же файл компилируется в обе цели.
-//
-// Эти .cpp в Linux-сборку НЕ входят (pl_glfun.cpp — строка состояния, звук,
-// потоки MFC; pl_iofor.cpp — флаги окна и хранилище форматов, выставляемых из
-// диалога). Однако счётные модули (tmcrthrectnode.cpp, tmcrthnodediel.cpp)
-// вызывают часть объявленных там функций. Здесь — их консольные эквиваленты:
-//   * PutTrace/PutStatistics — строка состояния окна -> терминал (stderr):
-//     в терминале — одна обновляемая строка, в файле журнала — сообщения и
-//     раз в 10 с ход расчёта (ключи -q и --verbose меняют подробность);
-//   * PutModel/PutSinchronizFlag — значки строки состояния -> ничего;
-//   * BeepAllEnd/BeepStepEnd — звук окончания -> ничего (пакетный режим);
-//   * IsAutoRun/IsBatchRun — TRUE: консольная версия всегда работает как
-//     пакетный запуск /Arb Windows-версии 5.0 (нет ожидания FieldView, нет звука,
-//     сообщения в консоль); IsDemoRun — FALSE;
-//   * ConsolePrint/ConsoleReportResult/Set|GetRunExitCode — как в pl_iofor.cpp
-//     5.0, но всегда в stdout (окна, к консоли которого надо подключаться, нет);
-//   * Get*Format — форматы вывода: ДЕФОЛТЫ из pl_iofor.h. В GUI они по
-//     умолчанию ровно такие и меняются только из диалога, которого в CLI нет;
-//   * TmcIsWindow/TmcPostMessage — окон нет.
-//
-// ВНИМАНИЕ — единственная вычислительная функция: IsPointInTr (предикат «точка
-// внутри треугольника») перенесена БАЙТ-В-БАЙТ из pl_glfun.cpp, формула/eps/
-// порядок не изменены (правила проекта: математику не трогаем).
+/// @file tmc_kernel_console.cpp
+/// @brief Консольные реализации функций, объявленных в `typerth.h` и `pl_iofor.h`: ход расчёта,
+///        код завершения, сообщения пакетного режима, форматы вывода, `IsPointInTr`.
+///
+/// Общий для обоих ядер: нужные заголовки находятся в каталоге ядра. Консольная версия всегда
+/// работает как пакетный запуск `/Arb` Windows-версии: нет ожидания FieldView, звука и окон.
+/// Строка состояния окна становится выводом в поток ошибок (ключи `-q` и `--verbose` меняют
+/// подробность), сообщения пакетного режима идут в stdout. Форматы вывода — значения по
+/// умолчанию из `pl_iofor.h`: в окне их менял диалог, которого здесь нет.
+/// Единственная вычислительная функция — `IsPointInTr`, перенесена байт в байт.
+/// @see https://www.tamic.ru/docs/platforms/linux-cli.html
 
-#include <afxwin.h>     // слой MFC (CString/CWnd/CMainFrame и пр.) — только Linux
-#include <planrt_h.h>   // -> resource.h (IDD_*), CPlanRT_HApp (только разбор)
 #include <pl_iofor.h>   // объявления формат-геттеров, Is*Run, ConsolePrint, TMC_EXIT_*
 #include <typerth.h>    // объявления PutTrace/PutStatistics/PutModel/Beep*/IsPointInTr
 
@@ -42,20 +22,18 @@
 
 #include <unistd.h>
 
-#ifndef TMC_KERNEL_EXE
-#define TMC_KERNEL_EXE "tmc_rth"
-#endif
-
-// 0 — тихо (-q), 1 — обычный, 2 — подробный (--verbose). Задаёт tmc_kernel_main.cpp.
+/// Подробность хода расчёта; определена в `tmc_kernel_main.cpp`.
 extern int g_nTmcTraceLevel;
 
 // --- Строка состояния -> терминал ------------------------------------------------
 namespace {
 
-bool   g_bStatusShown = false;   // в терминале стоит обновляемая строка
-double g_dStatusLast  = -1.0;    // когда её обновляли (с)
-double g_dLogLast     = -1.0;    // когда ход расчёта в последний раз писали в журнал (с)
+bool   g_bStatusShown = false;   ///< В терминале стоит обновляемая строка.
+double g_dStatusLast  = -1.0;    ///< Когда её обновляли, с.
+double g_dLogLast     = -1.0;    ///< Когда ход расчёта в последний раз писали в журнал, с.
 
+/// @brief Монотонные часы.
+/// @return Время, с.
 double NowSec()
 {
     struct timespec t;
@@ -63,15 +41,18 @@ double NowSec()
     return t.tv_sec + t.tv_nsec * 1e-9;
 }
 
+/// @brief Сообщает, идёт ли поток ошибок в терминал.
+/// @return true — терминал; иначе файл или канал.
 bool StderrIsTerminal()
 {
     static const int tty = ::isatty( STDERR_FILENO );
     return tty != 0;
 }
 
-// Строка состояния окна: ход расчёта (каждые 100 тактов), «Load prepr.»,
-// «Set block …» и т. п. Отдельной строкой выводятся только важные сообщения:
-// ошибки, предупреждения и на чём идёт счёт (процессор или видеокарта).
+/// @brief Отделяет ход расчёта («Load prepr.», «Set block …») от важных сообщений:
+///        ошибок, предупреждений и того, на чём идёт счёт.
+/// @param[in] s строка состояния
+/// @return true — ход расчёта.
 bool IsProgress( const char *s )
 {
     if( std::strstr( s, "rror" ) || std::strstr( s, "WARN" ) || std::strstr( s, "arning" ) ||
@@ -81,7 +62,7 @@ bool IsProgress( const char *s )
     return true;
 }
 
-// Убрать обновляемую строку перед обычным выводом.
+/// @brief Убирает обновляемую строку перед обычным выводом.
 void ClearStatus()
 {
     if( g_bStatusShown )
@@ -92,6 +73,10 @@ void ClearStatus()
     }
 }
 
+/// @brief Выводит строку состояния: в терминал — одной обновляемой строкой, в журнал — сообщения
+///        и раз в 10 с ход расчёта.
+/// @param[in] s текст
+/// @param[in] bStatistics true — вторая панель строки состояния (такты)
 void ShowStatus( const char *s, bool bStatistics )
 {
     if( g_nTmcTraceLevel <= 0 || s == nullptr ) return;
@@ -135,48 +120,28 @@ void ShowStatus( const char *s, bool bStatistics )
 
 } // namespace
 
-void PutTrace( CString csTrace )        { ShowStatus( (const char*)csTrace, false ); }
-void PutTrace( char *szTrace )          { ShowStatus( szTrace ? szTrace : "", false ); }
-void PutStatistics( CString csTrace )   { ShowStatus( (const char*)csTrace, true ); }
-void PutStatistics( char *szTrace )     { ShowStatus( szTrace ? szTrace : "", true ); }
-
-void PutModel( void )
-{
-    // Значок модели (Float/Double) в строке состояния — в CLI не нужен.
-}
-
-void PutSinchronizFlag( BOOL /*bTopologyFlag*/, BOOL /*bFieldFlag1*/, BOOL /*bSinchFlag1*/ )
-{
-    // Значки флагов вывода в строке состояния — в CLI не нужны.
-}
-
-// --- Звуковые сигналы окончания -> ничего (как /Arb, N-11) ------------------
-void BeepStepEnd( int /*i*/ ) {}
-void BeepAllEnd( void ) {}
-
-// --- Режим запуска: всегда пакетный (/Arb Windows-версии) -------------------
-BOOL IsAutoRun( void )  { return TRUE; }
-BOOL IsBatchRun( void ) { return TRUE; }
-BOOL IsDemoRun( void )  { return FALSE; }
-
-// Указатель на главное окно: в CLI окон нет.
-CMainFrame *GetMainFramePointer__( void ) { return nullptr; }
-
-// Запуск показа поля во внешнем вьювере (только демонстрационный режим /d).
-void RunOnViewField1( void ) {}
-
-// --- Окна (PostRunClose Windows-версии): их нет -----------------------------
-BOOL TmcIsWindow( HWND ) { return FALSE; }
-BOOL TmcPostMessage( HWND, UINT, WPARAM, LPARAM ) { return FALSE; }
+void PutTrace( CString csTrace )          { ShowStatus( (const char*)csTrace, false ); }
+void PutTrace( const char *szTrace )      { ShowStatus( szTrace ? szTrace : "", false ); }
+void PutStatistics( CString csTrace )     { ShowStatus( (const char*)csTrace, true ); }
+void PutStatistics( const char *szTrace ) { ShowStatus( szTrace ? szTrace : "", true ); }
 
 // --- Код завершения и сообщения пакетного режима (как pl_iofor.cpp 5.0) -----
+/// Код завершения процесса (`TMC_EXIT_*`).
 static volatile int nRunExitCode = TMC_EXIT_OK;
 
 void SetRunExitCode( int nCode ) { nRunExitCode = nCode; }
 int  GetRunExitCode( void )      { return nRunExitCode; }
 
-// Сообщение в stdout с именем программы: «[tmc_rth] Step 1 of 2: start».
-// Текст — тот же, что пишет Windows-версия в пакетном режиме.
+/// Последнее предупреждение расчёта: повторяется в конце, как в строке состояния окна.
+static char szRunWarning[1024] = "";
+
+void SetRunWarning( const char *pszText )
+{
+    std::snprintf( szRunWarning, sizeof( szRunWarning ), "%s", pszText ? pszText : "" );
+}
+
+const char *GetRunWarning( void ) { return szRunWarning; }
+
 void ConsolePrint( const char *pszFormat, ... )
 {
     char szBuf[4096];
@@ -210,8 +175,6 @@ void ConsoleReportResult( void )
 }
 
 // --- Форматы вывода: дефолты из pl_iofor.h (FORMAT_OUT_FILE_*) ---------------
-// Изменяемые статические буферы (сигнатуры геттеров — char*), заполненные
-// значениями по умолчанию: формат выходных файлов совпадает с Windows.
 char *GetnTFormat( void )
 {
     static char buf[] = FORMAT_OUT_FILE_NTFORMAT;
@@ -244,7 +207,7 @@ char *GetdFieldOutFormat( void )
 }
 
 // --- Вычислительный предикат: ПЕРЕНЕСЁН БАЙТ-В-БАЙТ из pl_glfun.cpp ----------
-// (математика не изменена; см. шапку файла и ISSUES.md).
+// (математика не изменена; см. описание файла).
 BOOL IsPointInTr( double x1, double y1, double x2, double y2, double x3, double y3, double x0, double y0 )
 {
     double s120, s230, s310, s123, eps;

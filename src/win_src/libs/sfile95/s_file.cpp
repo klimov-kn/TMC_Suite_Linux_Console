@@ -18,6 +18,14 @@
 **
 */
 
+/// @file s_file.cpp
+/// @brief Низкоуровневый ввод-вывод S-файла: открытие, закрытие, блоки байтов, «паскалевы» строки.
+///
+/// Часть модуля «Библиотека sfile95». Держит единственный открытый S-файл процесса
+/// в статической переменной; все функции чтения и записи работают с ним.
+/// Функции объявлены и описаны в `s_file.h`.
+/// @see https://www.tamic.ru/docs/code/lib-sfile95.html#s-format
+
 #include <stdio.h>
 #include <string.h>
 
@@ -30,7 +38,9 @@
 #include <s_file.h>
 
 
+/// Поток открытого S-файла; NULL — файл не открыт.
 static FILE *sf = NULL;
+/// Число «паскалевых» строк заголовка текущего S-файла.
 static int nPS_Number;
 
 
@@ -77,7 +87,7 @@ int skip_string( void )
 
 
 
-int write_S( void *ptr, size_t size )
+int write_S( const void *ptr, size_t size )
  {
   return( (fwrite( ptr, size, 1, sf ) == 1)? 0:-1 );
   }

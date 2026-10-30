@@ -1,91 +1,62 @@
-// tmc_win_prelude.h — преамбула, которую CMake принудительно подставляет
-// (-include) в начало каждого файла из win_src при сборке под Linux.
-//
-// Зачем нужна. Исходники писались под MSVC, и часть вещей компилятор давал им
-// «сам собой». На g++ их нет, но и трогать сами исходники ради этого нельзя:
-// снимок win_src должен оставаться копией Windows-версии байт в байт (кроме
-// регистра имён в #include — см. tools/import_win_src.py). Поэтому недостающее
-// объявляется здесь, снаружи.
-//
-// Что даёт:
-//   1. Слой MFC/win (CString, BOOL, far/near/fortran) — tmc_mfc.h.
-//   2. Тип _complex. Под MSVC структура с полями .x/.y приходила из системного
-//      CRT-заголовка legacy-API комплексных чисел, который подключался неявно;
-//      в glibc такого нет. Объявление ниже дословно повторяет C-ветку самого
-//      typedef.h (та же структура tag_complex с полями x и y типа _real),
-//      поэтому раскладка в памяти и семантика совпадают с Windows.
-//   3. Макросы __max/__min старого MSVC CRT — обычное тернарное сравнение.
-//
-// Ни одна формула и ни одна константа здесь не затрагиваются.
+/// @file tmc_win_prelude.h
+/// @brief Преамбула файлов снимка: подставляется компилятором (`-include`) в начало каждой единицы трансляции.
+///
+/// Исходники писались под MSVC, и часть вещей компилятор и CRT давали им сами. На g++
+/// их нет, поэтому недостающее объявляется снаружи, а не в самих исходниках: слой
+/// CString и типов Windows (`tmc_mfc.h`), тип `_complex` с той же раскладкой, что в
+/// C-ветке `typedef.h`, макросы и функции MSVC CRT, разделитель каталогов.
+/// Формулы и константы здесь не затрагиваются.
+/// @see https://www.tamic.ru/docs/code/compat.html
 
 #pragma once
 
-#if !defined(_WIN32) || defined(TMC_QT_WIN)
-
-// Строки и win-типы (CString обязан оставаться тривиально копируемым — см. файл).
 #include "tmc_mfc.h"
 
-// typedef.h защищён #ifndef _TYPDEF_H, поэтому повторное включение из самих
-// исходников ничего не меняет. Нужен он здесь ради типа _real: без него нечем
-// объявить _complex.
-#ifndef _WIN32   // Windows (MinGW): _complex даёт <math.h>, как MSVC
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
+#include <unistd.h>
+
+// typedef.h защищён #ifndef, поэтому повторное включение из исходников ничего не
+// меняет. Здесь он нужен ради типа _real: без него нечем объявить _complex.
 #include <typedef.h>
 
 #ifndef __COMPLEX_DEFINED
+  /// Признак того, что `_complex` уже объявлен (так же в `typedef.h`).
   #define __COMPLEX_DEFINED
-
-  typedef struct tag_complex { _real x;
-                               _real y; } _complex;   /* real and imaginary parts */
-
-#endif
-#endif // !_WIN32
-
-// --- Разделитель каталогов ---------------------------------------------------
-// В Windows-версии он записан как обратный слэш. Файл задания, созданный на
-// Windows, хранит относительные пути именно так, и его надо уметь прочитать;
-// новые пути на Linux записываются прямым слэшем. Поэтому сравнения в коде
-// заменяются на TMC_IS_SEP (принимает оба), а запись — на TMC_PATH_SEP.
-// Замену делает tools/import_win_src.py, сами исходники не редактируются вручную.
-#ifndef TMC_PATH_SEP
-  #ifdef _WIN32
-    #define TMC_PATH_SEP  '\\'   // Windows: как в Windows-версии
-  #else
-    #define TMC_PATH_SEP  '/'
-  #endif
-#endif
-#ifndef TMC_IS_SEP
-  #define TMC_IS_SEP(c) ( ((c) == '/') || ((c) == '\\') )
+  /// Комплексное число: под MSVC приходило из заголовка CRT, раскладка та же.
+  typedef struct tag_complex
+  {
+      _real x;   ///< Действительная часть.
+      _real y;   ///< Мнимая часть.
+  } _complex;
 #endif
 
-// __max/__min — макросы старого MSVC CRT (<stdlib.h> под _WIN32). В стандартной
-// библиотеке g++ их нет, семантика идентична тернарному сравнению.
+/// Разделитель каталогов для новых путей: на Linux — прямой слэш.
+#define TMC_PATH_SEP  '/'
+/// Разделитель в разбираемых путях: задание с Windows хранит пути с обратным слэшем, принимаются оба.
+#define TMC_IS_SEP(c) ( ((c) == '/') || ((c) == '\\') )
+
 #ifndef __max
+  /// Макрос старого MSVC CRT: большее из двух.
   #define __max(a,b) ( (a) > (b) ? (a) : (b) )
 #endif
 #ifndef __min
+  /// Макрос старого MSVC CRT: меньшее из двух.
   #define __min(a,b) ( (a) < (b) ? (a) : (b) )
 #endif
 
-// Функции и тип MSVC CRT, которые появились в коде редакции 5.0 (препроцессор
-// A-19, расчёт на видеокарте). Под MinGW они есть в настоящем CRT.
-#ifndef _WIN32
-  #include <stdio.h>
-  #include <stdlib.h>
-  #define _snprintf snprintf      // при усечении snprintf тоже ставит '\0' —
-                                  // вызывающий код делает это и сам
-  #define _vsnprintf vsnprintf    // MSVC при усечении вернёт -1, glibc — нужную
-                                  // длину; вызывающий код проверяет оба случая
-  #define _atoi64(s) atoll(s)
-  #include <strings.h>
-  #ifndef _strnicmp
-    #define _strnicmp strncasecmp
-  #endif
-  #ifndef _stricmp
-    #define _stricmp strcasecmp
-  #endif
-  #ifndef __int64
-    #define __int64 long long
-  #endif
-#endif
-
-#endif // !_WIN32
+/// Запись в буфер с ограничением. При усечении `snprintf` тоже ставит завершающий ноль.
+#define _snprintf snprintf
+/// То же со списком доводов. MSVC при усечении вернёт -1, glibc — нужную длину; код проверяет оба случая.
+#define _vsnprintf vsnprintf
+/// Строка -> 64-битное целое.
+#define _atoi64(s) atoll(s)
+/// Сравнение строк без учёта регистра, не длиннее заданного.
+#define _strnicmp strncasecmp
+/// Сравнение строк без учёта регистра.
+#define _stricmp strcasecmp
+/// Номер процесса (`<process.h>` MSVC): входит в имя временного файла макросов.
+#define _getpid getpid
+/// 64-битное целое MSVC.
+#define __int64 long long

@@ -1,11 +1,19 @@
 // TmcRTH_IndanOutput.cpp : implementation file
 //
 
-#include "stdafx.h"
-#include <TmcRTH_IndanOutput.h>
-#include <TmcRTH_Indan.h>
-#include <TmcTtoS.h>
-#include <TmcWideband.h>
+/// @file tmcrth_indanoutput.cpp
+/// @brief Разбор секции `#OUTPUT`, имена выходных файлов, пересчёт `.t` в `.s`.
+///
+/// Часть библиотеки TMCIndan. Реализует `CTmcRTH_IndanOutput`: строки `FILE`,
+/// `TOPOLOGY`, `FIELDS`, `SMATRIX`, `FIELD_DISTRIBUTION[_M]`; запись S-матрицы
+/// по окончании шага (`CTmcTtoS` или `CTmcWideband`) и нулевой S-матрицы для
+/// шага с ошибкой.
+/// @see https://www.tamic.ru/docs/code/lib-tmcindan.html#output
+
+#include <tmcrth_indanoutput.h>
+#include <tmcrth_indan.h>
+#include <tmcttos.h>
+#include <tmcwideband.h>
 #include <tmcgrviw.h>	// D-1: types of the input blocks
 #include <proc_s.h>		// D-1: save_S_matrix_element
 #include <expr.h>
@@ -31,7 +39,6 @@ CTmcRTH_IndanOutput::CTmcRTH_IndanOutput()
 	bOutFieldU = FALSE;
 	bOutTopology = FALSE;
 	bOutFieldSinchronization = FALSE;
-	bSoundEffect = TRUE;
 	bOutSMatrix = FALSE;
 	dTmin = 0.0;
 	dTmax = 0.0;
@@ -48,11 +55,6 @@ CTmcRTH_IndanOutput::~CTmcRTH_IndanOutput()
 }
 
 
-//BEGIN_MESSAGE_MAP(CTmcRTH_IndanOutput, CWnd)
-	//{{AFX_MSG_MAP(CTmcRTH_IndanOutput)
-		// NOTE - the ClassWizard will add and remove mapping macros here.
-	//}}AFX_MSG_MAP
-//END_MESSAGE_MAP()
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -175,7 +177,7 @@ void CTmcRTH_IndanOutput::ReadFileName( CString &csCh )
 	
 	for( i = (int)(strlen(csFileName)); i >= 0; i-- )
 	{
-		if( ( csFileName[i] == '\\' )||( csFileName[i] == '/' ) ) break;	// N-22: a dot in a folder name is allowed
+		if( ( TMC_IS_SEP(csFileName[i]) )||( csFileName[i] == '/' ) ) break;	// N-22: a dot in a folder name is allowed
 		if( csFileName[i] == '.' )
 		{
 			csBuf.Format("Unresolved simbol '.' in filename {%s}", csCh);
@@ -184,6 +186,7 @@ void CTmcRTH_IndanOutput::ReadFileName( CString &csCh )
 		};
 	};
 
+	// Все выходные файлы шага получают одно базовое имя и разные расширения.
 	csFileName.Format("%s.t", szBuf);
 	csFileNameField.Format("%s.ex", szBuf);
 	csFileNameField1.Format("%s.ey", szBuf);
@@ -310,44 +313,12 @@ void CTmcRTH_IndanOutput::IsCorrectly( CTmcLibError &cError1 )
 
 //CTmcRTH_IndanOutput& operator=( CTmcRTH_IndanOutput& cOut )
 
-CTmcRTH_IndanOutput& CTmcRTH_IndanOutput::operator=( CTmcRTH_IndanOutput& cOut )
-{
-	DeleteData();
-	bOutField  = cOut.bOutField;
-	bOutField1 = cOut.bOutField1;
-	bOutFieldU = cOut.bOutFieldU;
-	bOutTopology = cOut.bOutTopology;
-	bOutFieldSinchronization = cOut.bOutFieldSinchronization;
-	bSoundEffect = cOut.bSoundEffect;
-	bOutSMatrix = cOut.bOutSMatrix;
-	csFileName = cOut.csFileName;
-	csFileNameField  = cOut.csFileNameField;
-	csFileNameField1 = cOut.csFileNameField1;
-	csFileNameFieldU = cOut.csFileNameFieldU;
-	csFileNameField1Mod = cOut.csFileNameField1Mod;
-	csFileNameField1Faz = cOut.csFileNameField1Faz;
-	csFileNameTopology = cOut.csFileNameTopology;
-	csFileNameSMatrix = cOut.csFileNameSMatrix;
-	csFileNameQ  = cOut.csFileNameQ;
-	csFileNameIx = cOut.csFileNameIx;
-	csFileNameIy = cOut.csFileNameIy;
-	dTmin = cOut.dTmin;
-	dTmax = cOut.dTmax;
-	dFreq = cOut.dFreq;
-	dFreqUnit = cOut.dFreqUnit;
-	dTimeUnit = cOut.dTimeUnit;
-	cFieldDistr = cOut.cFieldDistr;
-	cError = cOut.cError;
-	return (*this);
-}
 
 void CTmcRTH_IndanOutput::AddPath( CString csPath )
 {
 	CString csBuf;
 	
 	if( IsFullPath() ) return;
-	// Linux: path has no dir (no '\\') -> csPath empty; keep bare name in CWD
-	if( csPath.GetLength() == 0 ) return;
 
 	csBuf.Format("%s/%s", csPath, csFileName);
 	csFileName = csBuf;
@@ -382,7 +353,7 @@ BOOL CTmcRTH_IndanOutput::IsFullPath( void )
 	int i, n;
 
 	n = csFileName.GetLength();
-	if( ( n > 0 )&&( ( csFileName[0] == '\\' )||( csFileName[0] == '/' ) ) ) return TRUE;	// N-22: \\server\share, \folder
+	if( ( n > 0 )&&( ( TMC_IS_SEP(csFileName[0]) )||( csFileName[0] == '/' ) ) ) return TRUE;	// N-22: \\server\share, \folder
 
 	for( i = 0; i < n; i++ )
 	{
@@ -392,29 +363,10 @@ BOOL CTmcRTH_IndanOutput::IsFullPath( void )
 	return FALSE;
 }
 
-void CTmcRTH_IndanOutput::OnOffFieldOutput()
-{
-	bOutField = !bOutField;
-	PutSinchronizFlag( bOutTopology, bOutField, bOutFieldSinchronization);
-	return;
-}
 
 
 
-void CTmcRTH_IndanOutput::OnOffSinchronizationFieldOutput()
-{
-	bOutFieldSinchronization = !bOutFieldSinchronization;
-	PutSinchronizFlag( bOutTopology, bOutField, bOutFieldSinchronization);
-	return;
-}
 
-void CTmcRTH_IndanOutput::OnOffSoundEffects()
-{
-	bSoundEffect = !bSoundEffect;
-	if( bSoundEffect )	PutStatistics("Sound on");
-	else PutStatistics("Sound off");
-	return;
-}
 
 void CTmcRTH_IndanOutput::ReadSmatrix( CString &csCh )
 {
@@ -422,7 +374,7 @@ void CTmcRTH_IndanOutput::ReadSmatrix( CString &csCh )
 	
 	char szBuf[CTMCRTH_INDANSBUF];
 	char szBuf1[CTMCRTH_INDANSBUF];
-	int i, j, n;
+	int i, n;
 	double r;
 	CString csBuf;
 
@@ -597,6 +549,7 @@ int CTmcRTH_IndanOutput::PutSmatrixZero( CTmcRTH_BlockList *pcBl )
 	if( csFileNameSMatrix.GetLength() == 0 ) return 0;
 
 	int i, nPort = 0, nRet = 1;
+	// Порты — блоки-входы (типы 102..105); вход с «[файл]» — многочастотный расчёт, выход.
 	for( ; pcBl != NULL; pcBl = pcBl->GetNext() )
 	{
 		int nT = pcBl->GetnType();
@@ -612,6 +565,7 @@ int CTmcRTH_IndanOutput::PutSmatrixZero( CTmcRTH_BlockList *pcBl )
 	char szBuf[CTMCRTH_INDANSBUF];
 	strncpy( szBuf, (LPCSTR)csFileNameSMatrix, CTMCRTH_INDANSBUF - 1 );
 	szBuf[CTMCRTH_INDANSBUF - 1] = '\0';
+	// Нулевой столбец S-матрицы для каждого возбуждаемого порта на частоте dFreq.
 	for( i = 1; i <= nPort; i++ )
 	{
 		if( save_S_matrix_element( i, szBuf, pcZ, dFreq, nPort ) != 0 ) { nRet = -1; break; };
@@ -620,7 +574,7 @@ int CTmcRTH_IndanOutput::PutSmatrixZero( CTmcRTH_BlockList *pcBl )
 	return nRet;
 }
 
-void CTmcRTH_IndanOutput::ReadFileDistr( CString &csCh, char *ch )
+void CTmcRTH_IndanOutput::ReadFileDistr( CString &csCh, const char *ch )
 {
 	if( cError.IsError() ) return;
 	

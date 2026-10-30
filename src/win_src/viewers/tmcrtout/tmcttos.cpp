@@ -1,16 +1,15 @@
 // TmcTtoS.cpp : implementation file
 //
 
-#include "stdafx.h"
-#include "tmcgrout.h"
+/// @file tmcttos.cpp
+/// @brief Реализация `CTmcTtoS`: пересчёт сигналов `.t` в столбец S-матрицы `.s` на одной частоте.
+///
+/// Часть модуля «Вьювер TMCROS»; тот же файл собирается в библиотеки ядер
+/// `planarrt_h_ttos`, `planarrt_x_ttos`. Объявление — в общем `src/Include/tmcttos.h`.
+/// @see https://www.tamic.ru/docs/code/tmcros.html#ttos
 #include <tmcgrviw.h>
 #include <tmcttos.h>
 
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[] = __FILE__;
-#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // CTmcTtoS
@@ -84,6 +83,7 @@ BOOL CTmcTtoS::IsError()
 void CTmcTtoS::MakeSmatrixFromFileT()
 {
 	if( IsError() ) return;
+	// Чтение отсчётов в окне; частота расчёта берётся из заголовка .t.
 	cSMatrix.ReadTFile( csTFileName, dTmin, dTmax );
 	if( cSMatrix.IsError() )
 	{
@@ -107,6 +107,7 @@ CString & CTmcTtoS::GetErrorMessage()
 void CTmcTtoS::SaveSmatrixToFileS()
 {
 	if( IsError() ) return;
+	// Запись под частотой вызова dFreq (она заменяет частоту из .t только в записи).
 	cSMatrix.Save( csSFileName, dFreq );
 	if( cSMatrix.IsError() )
 	{

@@ -1,7 +1,13 @@
 // TmcRTH_IndanTopology.cpp : implementation file
 //
 
-#include "stdafx.h"
+/// @file tmcrth_indantopology.cpp
+/// @brief Топология шага: передача блоков в список и разбор строк размещения `T n; X0; Y0;`.
+///
+/// Часть библиотеки TMCIndan. Реализует `CTmcRTH_IndanTopology`; здесь же
+/// определяется сторона входа (левая/правая, нижняя/верхняя) по точке привязки.
+/// @see https://www.tamic.ru/docs/code/lib-tmcindan.html#topology
+
 #include <tmcgrviw.h>
 #include <tmcrth_indantopology.h>
 #include <tmcrth_indan.h>
@@ -22,11 +28,6 @@ CTmcRTH_IndanTopology::~CTmcRTH_IndanTopology()
 }
 
 
-//BEGIN_MESSAGE_MAP(CTmcRTH_IndanTopology, CWnd)
-	//{{AFX_MSG_MAP(CTmcRTH_IndanTopology)
-		// NOTE - the ClassWizard will add and remove mapping macros here.
-	//}}AFX_MSG_MAP
-//END_MESSAGE_MAP()
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -141,6 +142,9 @@ void CTmcRTH_IndanTopology::ReadLink( CString &csCh, CTmcLibError &cError )
 	cBlockList.SetLink( iBuf, x0, y0, cError );
 	if( cError.IsError() ) return;
 
+	// Сторона входа по точке привязки: в пределах шага от границы области или
+	// в ближней к ней половине области. Вход INPUT_X по умолчанию левый,
+	// INPUT_Y — верхний; при необходимости тип блока меняется.
 	CTmcRTH_BlockList *pcBl;
 	pcBl = cBlockList.FindBlock( iBuf );
 	if( pcBl->GetnType() == CTMCRTH_BLCKNTYPE_INPXLEFT )
@@ -299,17 +303,7 @@ CTmcRTH_BlockList * CTmcRTH_IndanTopology::GetBlockList( void )
 	return &cBlockList;
 }
 
-CTmcRTH_IndanParam * CTmcRTH_IndanTopology::GetpParam( void )
-{
-	return pcParam;
-}
 
-CTmcRTH_IndanTopology& CTmcRTH_IndanTopology::operator=( CTmcRTH_IndanTopology& cTopol )
-{
-	pcParam = cTopol.GetpParam();
-	cBlockList = *cTopol.GetBlockList();
-	return (*this);
-}
 
 int CTmcRTH_IndanTopology::GetBlockNumber( void )
 {
