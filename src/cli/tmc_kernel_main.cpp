@@ -134,12 +134,18 @@ std::string FullPath( const char *path )
 }
 
 /// @brief Все шаги задания по порядку: то же, что `CPlanRT_HDoc::RunAll1()` Windows-версии.
+///
+/// Ошибка задания прерывает расчёт (код 1). Ошибка шага не прерывает свип: S-матрица
+/// шага в `.s` нулевая, считается следующий шаг, в конце — перечень первых 10 таких шагов и код 2.
 /// @param[in,out] cRectNode счётное ядро
 /// @param[in] csPath полный путь к заданию
 void RunAll1( CTmcRTHRectNode &cRectNode, const CString &csPath )
 {
+    CString csBuf;
     int i, n;
+    int nErrStep = 0;           // шаги, посчитанные с ошибкой
     nStep = 1;
+    CString csErrFirst, csErrSteps;
 
     SetRunWarning( "" );        // предупреждения этого расчёта
 
@@ -192,10 +198,33 @@ void RunAll1( CTmcRTHRectNode &cRectNode, const CString &csPath )
         cRectNode.RunStep();
         if( cRectNode.IsError() )
         {
-            ConsolePrint( "ERROR in calculation (step %d of %d): %s", nStep, n - 1,
+            // Свип не обрывается: S-матрица этого шага в .s нулевая, сообщение
+            // идёт в консоль и в ход расчёта, считается следующий шаг; в конце код 2.
+            const int nZero = cRectNode.GetOutput()->PutSmatrixZero( cRectNode.GetTopology().GetBlockList() );
+            const double rFreq = cRectNode.GetParam().rFreq / cRectNode.GetParam().rFreqUnit;
+            const char *pszUnit = (LPCTSTR)cRectNode.GetParam().csFreqUnit;
+            ConsolePrint( "ERROR in calculation (step %d of %d, %lg %s): %s%s", nStep, n - 1,
+                rFreq, pszUnit, (LPCTSTR)cRectNode.GetErrorMessage(),
+                ( nZero > 0 ) ? " - the S-matrix of this step is zeros in the .s" :
+                ( ( nZero < 0 ) ? " - zeros could not be written to the .s" : "" ) );
+            csBuf.Format( "Error at step %d (%lg %s): %s", nStep, rFreq, pszUnit,
                 (LPCTSTR)cRectNode.GetErrorMessage() );
-            SetRunExitCode( TMC_EXIT_CALC_ERROR );
-            return;
+            PutTrace( csBuf );
+            if( nErrStep == 0 ) csErrFirst = csBuf;
+            if( nErrStep < 10 )
+            {
+                CString csS;
+                csS.Format( "%s%d (%lg %s)", ( nErrStep > 0 ) ? ", " : "", nStep, rFreq, pszUnit );
+                csErrSteps += csS;
+            };
+            nErrStep++;
+            if( g_bStop )
+            {
+                ConsolePrint( "STOPPED at step %d of %d", nStep, n - 1 );
+                SetRunExitCode( TMC_EXIT_ABORTED );
+                return;
+            };
+            continue;
         };
         if( g_bStop )
         {
@@ -207,6 +236,16 @@ void RunAll1( CTmcRTHRectNode &cRectNode, const CString &csPath )
         ConsolePrint( "Step %d of %d: done", nStep, n - 1 );
     };
 
+    // Итог: были шаги с ошибкой — код 2 и перечень первых 10 таких шагов; иначе код 0.
+    if( nErrStep > 0 )
+    {
+        csBuf.Format( "Calculated with errors at %d step(s): %s%s - the S-matrix there is zeros. First: %s",
+            nErrStep, (LPCTSTR)csErrSteps, ( nErrStep > 10 ) ? ", ..." : "", (LPCTSTR)csErrFirst );
+        ConsolePrint( "%s", (LPCTSTR)csBuf );
+        PutTrace( csBuf );
+        SetRunExitCode( TMC_EXIT_CALC_ERROR );
+        return;
+    };
     if( GetRunWarning()[0] != '\0' ) PutTrace( GetRunWarning() );   // предупреждение ещё раз в конце
     SetRunExitCode( TMC_EXIT_OK );
 }
