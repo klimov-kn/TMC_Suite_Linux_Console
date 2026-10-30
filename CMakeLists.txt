@@ -5,8 +5,8 @@
 cmake_minimum_required(VERSION 3.22)   # Ubuntu 24.04 поставляет cmake 3.28
 
 project(TMC_Suite_Linux
-        VERSION 1.0.0
-        DESCRIPTION "TMC Suite: счётные ядра tmc_rth/tmc_rtx для Linux (консольная версия)"
+        VERSION 2.0.0
+        DESCRIPTION "TMC Suite 2.0: счётные ядра tmc_rth/tmc_rtx для Linux (консольная версия)"
         LANGUAGES CXX)
 
 # Общие настройки: стандарт, каталоги результатов, арифметика.

@@ -1,12 +1,12 @@
 <div align="center">
 
-# TMC Suite — computation kernels for Linux
+# TMC Suite 2.0 — computation kernels for Linux
 
 **Scientific software package for electrodynamic simulation of planar structures**
 
 C++ · Linux (x64) · console, no graphics required
 
-**English** · [Русский](#tmc-suite--счётные-ядра-для-linux)
+**English** · [Русский](#tmc-suite-20--счётные-ядра-для-linux)
 
 </div>
 
@@ -19,101 +19,139 @@ computation and visualization of planar structures (H-polarization and X-mode). 
 the **Linux port of the computation kernels**: the solvers alone, without windows, for machines
 that have nothing but a terminal — a compute server, a cluster node, a container.
 
-The computational code is not rewritten. It is the Windows source tree compiled by `g++` as is; the
-MFC layer the kernels were wrapped in is replaced by a thin console entry point. Results stay
-compatible with the Windows version: a task calculated here opens in the Windows viewers, and the
-other way round.
+The computational code is not rewritten. It is the source tree of the Windows version compiled by
+`g++` as is; the MFC layer the kernels were wrapped in is replaced by a thin console entry point.
+Results stay compatible with the Windows version: a task calculated here opens in the Windows
+viewers, and the other way round.
+
+## What is new in 2.0
+
+- **calculation on a video card** (OpenCL 1.2, double precision): keys `-GPU`, `-GPU:n`, `-CPU`;
+- **multi-frequency calculation** and multi-frequency directional patterns;
+- **faster preprocessing** of ε distributions (several threads);
+- **directional patterns** in batch mode: key `-DN`;
+- **calculation time report**: key `-Time`;
+- the same messages and **exit codes** as the batch mode of the Windows version;
+- an **error at a sweep step** does not break the sweep: the S-matrix of that step is zeros in the
+  `.s` file, the next step is calculated, the exit code is 2;
+- all fixes of the Windows version: the task parser, the kernels, the `.s` files, the physics model;
+- **About** and the **user manual** right from the terminal, in Russian or English;
+- **refactored code**: only what is built, no dead code, every file is described;
+- the build gives **no compiler errors or warnings**.
 
 ## Components
 
 | Program | Purpose |
 |---|---|
-| `tmc_rth` | solver, H-polarization |
-| `tmc_rtx` | solver, X-mode (incl. magnetized plasma) |
+| `tmc_rth` | solver, H-polarization (PlanarRT_H) |
+| `tmc_rtx` | solver, X-mode, incl. magnetized plasma (PlanarRT_X) |
 
 ### Libraries
 `sfile95` · `complex` · `exprint` · `TMCLibError` · `prepr` · `TMCIndan`
 
-## What it looks like
+## Running a calculation
 
 ```
-$ tmc_rth --version
-tmc_rth - counting kernel PlanarRT_H (H-mode), TMC Suite 4.1
-built for Linux (x64), console version - no windows required
-
-  site:   https://www.tamic.ru
-  manual: TMC_Suite_User_Manual.pdf (next to this program)
-          https://www.tamic.ru/docs/user-manual/index.html
-
-$ tmc_rth /home/user/work/horn.tpl
-Step:1;Error:no
-$ ls
-horn.tpl  horn.t  horn.tt  horn.s  horn.ex  horn.AMP  horn.FAZ  horn.DAT
+tmc_rth -Time work/horn.tpl
 ```
+
+![Console output of a calculation](.github/images/run.png)
+
+The task is an ordinary `.tpl` file; output files (names from `#OUTPUT` of the task) are written
+next to it. `tmc_rtx` runs in the same way. Keep tasks and results on a native Linux disk: the
+kernel rewrites its files on every time step.
+
+## Video card
+
+The time-domain calculation can run on a video card through OpenCL 1.2 in double precision:
+
+```
+tmc_rth -GPU work/horn.tpl       # the first suitable card
+tmc_rth -GPU:1 work/horn.tpl     # the second card
+```
+
+| Item | Details |
+|---|---|
+| Driver | video card driver with OpenCL and double precision (`cl_khr_fp64`) |
+| Package | `ocl-icd-libopencl1`; `clinfo` shows whether the system sees the card |
+| Numbering | from 0, among the cards with double precision only |
+| No card or driver | the calculation runs on the CPU; the `-Time` report gives the reason |
+| Small tasks | stay on the CPU, where they are faster; `TMC_GPU_MIN_NODES=0` sends them to the card |
+| Results | the same as on the CPU |
+
+## About
+
+```
+tmc_rth --about
+```
+
+![About in the terminal](.github/images/about_en.png)
+
+Version, system, author and his pages, website, where the manual is. `tmc_rth --manual` opens the
+PDF manual; in a terminal without a desktop it prints the text. `--lang=ru` or `--lang=en` sets the
+language of messages.
 
 ## Installation
 
-Both builds are published in [Releases](../../releases); nothing has to be installed.
+Both builds are published in [Releases](../../releases); nothing has to be installed. Each contains
+the kernels and the user manual in Russian and English.
 
-The archive — the kernels, the licence and the user manual:
+The archive:
 
 ```
-tar xzf tmc-suite-cli-linux-x86-64.tar.gz
-cd tmc-suite-cli
-./tmc_rth /full/path/task.tpl
+tar xzf tmc-suite-cli-2.0.0-linux-x86-64.tar.gz
+cd tmc-suite-cli-2.0.0
+./tmc_rth ~/work/task.tpl
 ```
 
 The AppImage — the same thing as a single file, handy for a compute node or a container:
 
 ```
-chmod +x TMC_Suite_CLI-1.0.0-x86_64.AppImage
-./TMC_Suite_CLI-1.0.0-x86_64.AppImage tmc_rth /full/path/task.tpl
-ln -s TMC_Suite_CLI-1.0.0-x86_64.AppImage tmc_rth && ./tmc_rth /full/path/task.tpl
+chmod +x TMC_Suite_CLI-2.0.0-x86_64.AppImage
+./TMC_Suite_CLI-2.0.0-x86_64.AppImage tmc_rth ~/work/task.tpl
+ln -s TMC_Suite_CLI-2.0.0-x86_64.AppImage tmc_rth && ./tmc_rth ~/work/task.tpl
 ```
 
 Requirements: x64 and glibc 2.39 or newer — Ubuntu 24.04 LTS and compatible systems. No graphics
 libraries are needed. If the system complains about FUSE, add `--appimage-extract-and-run`.
 
-## Building from source
+## Command line
 
 ```
-sudo apt install -y build-essential cmake ninja-build
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DTMC_BUILD_KERNELS=ON
-cmake --build build -j
+tmc_rth [keys] <task.tpl>
 ```
 
-The kernels appear in `dist/linux-x86-64/bin`.
-
-> On a case-sensitive file system, run `python3 tools/check_case.py` before building: it compares
-> every `#include` with the real file name on disk.
+| Key | Meaning |
+|---|---|
+| `-Time` | write the calculation time report next to the task |
+| `-GPU`, `-GPU:n` | calculate on video card `n` (from 0); also `TMC_GPU=n+1` |
+| `-CPU` | calculate on the CPU (stronger than `-GPU`) |
+| `-DN` | write directional pattern files after the calculation (also `TMC_AUTO_DN=1`) |
+| `-q`, `--quiet` / `--verbose` | no progress / every progress line |
+| `--about`, `-v` | About |
+| `--manual` | open the user manual |
+| `--lang=ru\|en` | message language; remembered |
+| `-h`, `--help` | help |
 
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
-| 0 | the calculation completed |
-| 1 | error: the task could not be opened or read, or the calculation stopped |
-| 2 | the program was started without an argument |
-
-## Input format
-
-Simulations are described in **`.tpl`** text files (the TAMIC input language): geometry, materials,
-sources, frequency sweeps and output requests. Always pass the **full path** to the task: the
-directory it lives in is where included files and `.eps` distributions are looked for.
-
-## Relation to the other ports
-
-| Repository | What it is |
-|---|---|
-| [TMC Suite (Windows)](https://github.com/klimov-kn/TMC_Suite) | the original package, MFC / OpenGL |
-| **this repository** | Linux, computation kernels without windows |
-| [TMC Suite for Linux (graphical)](https://github.com/klimov-kn/TMC_Suite_Linux_GUI) | Linux, all six programs on Qt 6 |
-| [TMC Suite for macOS](https://github.com/klimov-kn/TMC_Suite_MacOS) | macOS, universal build for Apple Silicon and Intel |
+| 0 | all steps are calculated |
+| 1 | error in the task (not found, preprocessor, data) |
+| 2 | error during the calculation (the sweep is calculated to the end) |
+| 3 | the calculation was stopped (Ctrl+C, `kill`) |
 
 ## Documentation
 
-Full documentation is published on the project website: user manual, the `.tpl` task language
-reference, headless operation, installation and architecture notes.
+Everything is on the website:
+
+- [console edition](https://www.tamic.ru/docs/platforms/linux-cli.html): keys, environment variables,
+  differences from the Windows version;
+- [building from source](https://www.tamic.ru/docs/platforms/linux-cli.html#build);
+- [installation](https://www.tamic.ru/docs/install/linux.html);
+- [user manual](https://www.tamic.ru/docs/user-manual/index.html);
+- [code documentation](https://www.tamic.ru/docs/code/index.html).
 
 ## Author & links
 
@@ -123,20 +161,20 @@ reference, headless operation, installation and architecture notes.
 
 ## License
 
-See [`LICENSE`](LICENSE).
+Apache License 2.0: see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
 
 ---
 ---
 
 <div align="center">
 
-# TMC Suite — счётные ядра для Linux
+# TMC Suite 2.0 — счётные ядра для Linux
 
 **Научный пакет для электродинамического моделирования планарных структур**
 
 C++ · Linux (x64) · консоль, графика не нужна
 
-[English](#tmc-suite--computation-kernels-for-linux) · **Русский**
+[English](#tmc-suite-20--computation-kernels-for-linux) · **Русский**
 
 </div>
 
@@ -149,101 +187,139 @@ C++ · Linux (x64) · консоль, графика не нужна
 ядер на Linux**: только расчёт, без окон, для машин, где есть лишь терминал: счётного сервера,
 узла кластера, контейнера.
 
-Вычислительный код не переписывался. Это исходники Windows-версии, скомпилированные `g++` как есть;
-обёртка MFC, в которую были завёрнуты ядра, заменена тонкой консольной точкой входа. Результаты
-остаются совместимыми с Windows-версией: задание, посчитанное здесь, открывается в просмотрщиках
-Windows-версии, и наоборот.
+Вычислительный код не переписывался. Это исходники версии для Windows, скомпилированные `g++` как
+есть; обёртка MFC, в которую были завёрнуты ядра, заменена тонкой консольной точкой входа.
+Результаты остаются совместимыми с версией для Windows: задание, посчитанное здесь, открывается в
+её просмотрщиках, и наоборот.
+
+## Что нового в 2.0
+
+- **расчёт на видеокарте** (OpenCL 1.2, двойная точность): ключи `-GPU`, `-GPU:n`, `-CPU`;
+- **многочастотный расчёт** и многочастотные диаграммы направленности;
+- **ускоренный препроцессор** распределений ε (несколько потоков);
+- **диаграммы направленности** в пакетном режиме: ключ `-DN`;
+- **отчёт о времени расчёта**: ключ `-Time`;
+- те же сообщения и **коды завершения**, что у пакетного режима версии для Windows;
+- **ошибка на шаге свипа** не обрывает свип: S-матрица этого шага в `.s` нулевая, считается
+  следующий шаг, код завершения — 2;
+- все исправления версии для Windows: разбор задания, ядра, файлы `.s`, расчётная модель;
+- **«О программе»** и **руководство пользователя** прямо из терминала, по-русски или по-английски;
+- **код после рефакторинга**: только то, что собирается, без мёртвого кода, каждый файл описан;
+- сборка идёт **без ошибок и предупреждений** компилятора.
 
 ## Состав
 
 | Программа | Назначение |
 |---|---|
-| `tmc_rth` | расчёт, H-поляризация |
-| `tmc_rtx` | расчёт, X-мода (в том числе замагниченная плазма) |
+| `tmc_rth` | расчёт, H-поляризация (PlanarRT_H) |
+| `tmc_rtx` | расчёт, X-мода, в том числе замагниченная плазма (PlanarRT_X) |
 
 ### Библиотеки
 `sfile95` · `complex` · `exprint` · `TMCLibError` · `prepr` · `TMCIndan`
 
-## Как это выглядит
+## Запуск расчёта
 
 ```
-$ tmc_rth --version
-tmc_rth - counting kernel PlanarRT_H (H-mode), TMC Suite 4.1
-built for Linux (x64), console version - no windows required
-
-  site:   https://www.tamic.ru
-  manual: TMC_Suite_User_Manual.pdf (next to this program)
-          https://www.tamic.ru/docs/user-manual/index.html
-
-$ tmc_rth /home/user/work/horn.tpl
-Step:1;Error:no
-$ ls
-horn.tpl  horn.t  horn.tt  horn.s  horn.ex  horn.AMP  horn.FAZ  horn.DAT
+tmc_rth -Time work/horn.tpl
 ```
+
+![Вывод расчёта в консоли](.github/images/run.png)
+
+Задание — обычный файл `.tpl`; выходные файлы (имена — из `#OUTPUT` задания) пишутся рядом с ним.
+`tmc_rtx` запускается так же. Держите задания и результаты на родном диске Linux: ядро переписывает
+свои файлы на каждом такте.
+
+## Видеокарта
+
+Расчёт по времени может идти на видеокарте через OpenCL 1.2 с двойной точностью:
+
+```
+tmc_rth -GPU work/horn.tpl       # первая подходящая карта
+tmc_rth -GPU:1 work/horn.tpl     # вторая карта
+```
+
+| Что | Подробности |
+|---|---|
+| Драйвер | драйвер видеокарты с OpenCL и двойной точностью (`cl_khr_fp64`) |
+| Пакет | `ocl-icd-libopencl1`; `clinfo` показывает, видит ли система карту |
+| Нумерация | с 0, только среди карт с двойной точностью |
+| Нет карты или драйвера | расчёт идёт на процессоре, причину называет отчёт `-Time` |
+| Малые задания | остаются на процессоре: там они быстрее; `TMC_GPU_MIN_NODES=0` отправляет их на карту |
+| Результаты | те же, что на процессоре |
+
+## О программе
+
+```
+tmc_rth --about
+```
+
+![«О программе» в терминале](.github/images/about_ru.png)
+
+Версия, система, автор и его страницы, сайт, где лежит руководство. `tmc_rth --manual` открывает
+руководство в PDF, в терминале без графики — выводит текст. `--lang=ru` или `--lang=en` задаёт язык
+сообщений.
 
 ## Установка
 
-Обе поставки опубликованы в разделе [Releases](../../releases), устанавливать ничего не нужно.
+Обе поставки опубликованы в разделе [Releases](../../releases), устанавливать ничего не нужно. В
+каждой — ядра и руководство пользователя на русском и английском.
 
-Архив — ядра, лицензия и руководство пользователя:
+Архив:
 
 ```
-tar xzf tmc-suite-cli-linux-x86-64.tar.gz
-cd tmc-suite-cli
-./tmc_rth /полный/путь/задание.tpl
+tar xzf tmc-suite-cli-2.0.0-linux-x86-64.tar.gz
+cd tmc-suite-cli-2.0.0
+./tmc_rth ~/работа/задание.tpl
 ```
 
 Образ AppImage — то же самое одним файлом, удобно для счётного узла или контейнера:
 
 ```
-chmod +x TMC_Suite_CLI-1.0.0-x86_64.AppImage
-./TMC_Suite_CLI-1.0.0-x86_64.AppImage tmc_rth /полный/путь/задание.tpl
-ln -s TMC_Suite_CLI-1.0.0-x86_64.AppImage tmc_rth && ./tmc_rth /полный/путь/задание.tpl
+chmod +x TMC_Suite_CLI-2.0.0-x86_64.AppImage
+./TMC_Suite_CLI-2.0.0-x86_64.AppImage tmc_rth ~/работа/задание.tpl
+ln -s TMC_Suite_CLI-2.0.0-x86_64.AppImage tmc_rth && ./tmc_rth ~/работа/задание.tpl
 ```
 
 Требования: x64 и glibc 2.39 или новее — Ubuntu 24.04 LTS и совместимые системы. Графические
 библиотеки не нужны. Если система ругается на FUSE, добавьте ключ `--appimage-extract-and-run`.
 
-## Сборка из исходников
+## Командная строка
 
 ```
-sudo apt install -y build-essential cmake ninja-build
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DTMC_BUILD_KERNELS=ON
-cmake --build build -j
+tmc_rth [ключи] <задание.tpl>
 ```
 
-Ядра появятся в `dist/linux-x86-64/bin`.
+| Ключ | Что делает |
+|---|---|
+| `-Time` | записать рядом с заданием отчёт о времени расчёта |
+| `-GPU`, `-GPU:n` | считать на видеокарте `n` (с 0); то же — `TMC_GPU=n+1` |
+| `-CPU` | считать на процессоре (сильнее `-GPU`) |
+| `-DN` | после расчёта записать диаграммы направленности (то же — `TMC_AUTO_DN=1`) |
+| `-q`, `--quiet` / `--verbose` | не выводить ход расчёта / выводить каждую строку |
+| `--about`, `-v` | о программе |
+| `--manual` | открыть руководство пользователя |
+| `--lang=ru\|en` | язык сообщений; запоминается |
+| `-h`, `--help` | справка |
 
-> На файловой системе, различающей регистр имён, перед сборкой полезно выполнить
-> `python3 tools/check_case.py`: инструмент сверяет каждый `#include` с настоящим именем файла.
-
-## Коды возврата
+## Коды завершения
 
 | Код | Значение |
 |---|---|
-| 0 | расчёт прошёл |
-| 1 | ошибка: задание не открылось, не прочиталось или счёт прервался |
-| 2 | программа запущена без аргумента |
-
-## Формат задания
-
-Расчёт описывается текстовым файлом **`.tpl`** (входной язык TAMIC): геометрия, материалы,
-источники, частотные свипы и состав выходных данных. Путь к заданию задавайте **полным**: по нему
-определяется каталог, где лежат включаемые файлы и распределения `.eps`.
-
-## Связь с другими сборками
-
-| Репозиторий | Что это |
-|---|---|
-| [TMC Suite (Windows)](https://github.com/klimov-kn/TMC_Suite) | исходный пакет, MFC / OpenGL |
-| **этот репозиторий** | Linux, счётные ядра без окон |
-| [TMC Suite для Linux (графический)](https://github.com/klimov-kn/TMC_Suite_Linux_GUI) | Linux, все шесть программ на Qt 6 |
-| [TMC Suite для macOS](https://github.com/klimov-kn/TMC_Suite_MacOS) | macOS, универсальная сборка для Apple Silicon и Intel |
+| 0 | все шаги посчитаны |
+| 1 | ошибка задания (нет файла, препроцессор, данные) |
+| 2 | ошибка во время расчёта (свип считается до конца) |
+| 3 | расчёт остановлен (Ctrl+C, `kill`) |
 
 ## Документация
 
-Полная документация опубликована на сайте проекта: руководство пользователя, справочник по языку
-заданий `.tpl`, работа без окон, установка и описание архитектуры.
+Всё на сайте:
+
+- [консольная версия](https://www.tamic.ru/docs/platforms/linux-cli.html): ключи, переменные
+  окружения, отличия от версии для Windows;
+- [сборка из исходников](https://www.tamic.ru/docs/platforms/linux-cli.html#build);
+- [установка](https://www.tamic.ru/docs/install/linux.html);
+- [руководство пользователя](https://www.tamic.ru/docs/user-manual/index.html);
+- [документация на код](https://www.tamic.ru/docs/code/index.html).
 
 ## Авторы и ссылки
 
@@ -253,4 +329,4 @@ cmake --build build -j
 
 ## Лицензия
 
-См. [`LICENSE`](LICENSE).
+Apache License 2.0: см. [`LICENSE`](LICENSE) и [`NOTICE`](NOTICE).
