@@ -55,6 +55,7 @@ bool StderrIsTerminal()
 /// @return true — ход расчёта.
 bool IsProgress( const char *s )
 {
+    if( std::strstr( s, "Error:no" ) ) return true;     // итог шага без ошибки: «Step:1;Error:no»
     if( std::strstr( s, "rror" ) || std::strstr( s, "WARN" ) || std::strstr( s, "arning" ) ||
         std::strstr( s, "cancel" ) || std::strncmp( s, "GPU", 3 ) == 0 ||
         std::strncmp( s, "CPU", 3 ) == 0 )

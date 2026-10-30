@@ -404,5 +404,6 @@ int main( int argc, char **argv )
     g_pNode = nullptr;
 
     ConsoleReportResult();
+    g_nTmcTraceLevel = 0;               // ход расчёта закончен: после итога строка состояния не выводится
     return GetRunExitCode();
 }

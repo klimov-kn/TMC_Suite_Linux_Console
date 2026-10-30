@@ -194,7 +194,7 @@ CTmcRTHRectNode::CTmcRTHRectNode()
 	dYmin = 0.0;				// global parameter Ymin for rectangle
 	dYmax = 0.0;				// global parameter Ymax for rectangle
 	bIsRunStep1Run = FALSE;
-	m_cTiming.csKernel = "PlanarRT_X (tmc_rtx.exe)";	// TIMING
+	m_cTiming.csKernel = "PlanarRT_X (tmc_rtx)";	// TIMING
 	return;
 }
 
@@ -326,7 +326,7 @@ void CTmcRTHRectNode::RunStep( void )
 	}
 	catch( std::bad_alloc & )
 	{
-		cError.PutErrorMessage( "Not enough memory" );
+		cError.PutErrorMessage( "Exception in calculation: Not enough memory" );
 	}
 	catch( ... )
 	{
