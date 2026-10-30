@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src=".github/images/banner_en.png" alt="TMC Suite — electrodynamic simulation of planar structures" width="100%">
+
 # TMC Suite 2.0 — computation kernels for Linux
 
 **Scientific software package for electrodynamic simulation of planar structures**
@@ -167,6 +169,8 @@ Apache License 2.0: see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
 ---
 
 <div align="center">
+
+<img src=".github/images/banner_ru.png" alt="TMC Suite — электродинамическое моделирование планарных структур" width="100%">
 
 # TMC Suite 2.0 — счётные ядра для Linux
 
